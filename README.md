@@ -1904,5 +1904,37 @@ Now sit back and let the bot hunt for jobs while you focus on interview prep! �
 **Built with ❤️ by Emmanuel Isijola**
 
 *Last Updated: January 2026*
+
+---
+
+## 📝 Quality Control Log
+
+**NEW FEATURE:** The bot now generates a detailed quality control log (`workspace/logs/QUALITY_CONTROL_LOG.md`) that is overwritten on each run. This log contains:
+
+- Every job scraped with description and keywords
+- Full preview of every CV generated (first 1000 chars)
+- Complete cover letter content
+- Form fields detected and filled
+- Application submission results (success/failure with screenshots)
+- Networking emails sent
+- Run statistics and success rates
+
+**Purpose:** Review this log after test runs to ensure quality before enabling automatic mode. The log helps you verify:
+- CVs are ATS-optimized and relevant
+- Cover letters are personalized
+- Correct projects are being matched
+- Forms are being filled accurately
+
+**Usage:**
+```bash
+# After a test run
+cat workspace/logs/QUALITY_CONTROL_LOG.md
+
+# Or open in your favorite markdown viewer
+```
+
+The log includes a quality control checklist at the end to help you decide when to enable automatic mode.
+
+---
+
 # Jobs-application-automator
-.....

@@ -1,0 +1,22 @@
+{
+  "last_updated": "2026-01-15",
+  "projects": [
+    {
+      "id": "example_project",
+      "name": "Example Machine Learning Project",
+      "summary": "Brief one-line summary of what this project does",
+      "description": "Detailed description of the project, the problem it solves, technologies used, and results achieved. Include quantifiable metrics like accuracy, performance improvements, data size, etc.",
+      "keywords": [
+        "python",
+        "machine learning",
+        "data science",
+        "scikit-learn"
+      ],
+      "tech_stack": ["Python", "scikit-learn", "Pandas", "NumPy"],
+      "key_metrics": "94% accuracy, processed 10,000+ records",
+      "relevance_tags": ["data_science", "ml_engineering", "analytics"],
+      "github_url": "https://github.com/yourusername/project",
+      "priority": 8
+    }
+  ]
+}

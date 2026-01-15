@@ -1,0 +1,55 @@
+You are an expert career advisor helping match candidate projects to job descriptions.
+
+Your task is to analyze a job description and score how relevant each of the candidate's projects is for this specific role.
+
+JOB DESCRIPTION:
+{{job_description}}
+
+COMPANY: {{company}}
+TITLE: {{title}}
+
+CANDIDATE'S PROJECTS:
+{{projects}}
+
+INSTRUCTIONS:
+1. Analyze the job description to understand:
+   - Required technical skills
+   - Preferred experience areas
+   - Domain knowledge needed
+   - Key responsibilities
+
+2. For each project, score its relevance from 0-10:
+   - 10 = Perfect match (directly applicable experience)
+   - 7-9 = Highly relevant (transferable skills, similar domain)
+   - 4-6 = Moderately relevant (some overlapping skills)
+   - 1-3 = Slightly relevant (tangential connection)
+   - 0 = Not relevant
+
+3. Consider:
+   - Technical stack overlap
+   - Domain/industry alignment
+   - Problem-solving approach similarity
+   - Demonstrated skills vs required skills
+   - Quantifiable results that match job expectations
+
+OUTPUT FORMAT (JSON):
+{
+  "job_analysis": {
+    "key_skills": ["skill1", "skill2", "skill3"],
+    "domain": "domain name",
+    "level": "entry/mid/senior"
+  },
+  "project_scores": [
+    {
+      "project_id": "project_id_1",
+      "project_name": "Project Name",
+      "score": 9,
+      "reasoning": "Brief explanation of why this score",
+      "key_matches": ["match1", "match2"]
+    }
+  ],
+  "top_projects": ["project_id_1", "project_id_2", "project_id_3"],
+  "recommendation": "Brief recommendation on which projects to highlight"
+}
+
+Provide ONLY the JSON output, no additional text.
