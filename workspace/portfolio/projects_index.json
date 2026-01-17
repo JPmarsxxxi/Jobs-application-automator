@@ -1,0 +1,149 @@
+{
+  "last_updated": "2026-01-15",
+  "projects": [
+    {
+      "id": "video_production_pipeline",
+      "name": "AI-Powered Video Production Pipeline",
+      "summary": "Automated video production system reducing 15-22 hours of manual work to 1-2 hours with 99.7% asset collection success",
+      "description": "Built comprehensive AI-powered automation pipeline integrating Groq LLaMA, Google Gemini, ElevenLabs TTS, and YOLO for end-to-end video production. System handles script generation, TTS synthesis, multimodal asset collection (images, videos, frames), and quality validation. Achieved 90% time reduction and 87% cost savings while maintaining professional quality standards.",
+      "keywords": [
+        "python",
+        "ai orchestration",
+        "computer vision",
+        "nlp",
+        "automation",
+        "web scraping",
+        "multimodal ai",
+        "gemini",
+        "yolo",
+        "ffmpeg"
+      ],
+      "tech_stack": [
+        "Python",
+        "Google Gemini AI",
+        "Groq LLaMA",
+        "ElevenLabs TTS",
+        "YOLOv8",
+        "FFmpeg",
+        "Playwright",
+        "OpenCV"
+      ],
+      "key_metrics": "90% time reduction (15-22h → 1-2h), 99.7% asset success rate, 87% cost reduction, 50+ videos/day capacity",
+      "relevance_tags": [
+        "ai_engineering",
+        "automation",
+        "computer_vision",
+        "data_engineering",
+        "production_systems"
+      ],
+      "github_url": "https://github.com/JPmarsxxxi/video-production-pipeline",
+      "priority": 10
+    },
+    {
+      "id": "crypto_sentiment_analysis",
+      "name": "Cryptocurrency Sentiment Analysis Research",
+      "summary": "Research project comparing Custom LSTM vs CryptoBERT for Bitcoin price prediction, proving sentiment doesn't predict hourly movements",
+      "description": "Multi-source sentiment analysis collecting data from Reddit, Telegram, YouTube, and Google News to predict Bitcoin price movements. Compared custom LSTM encoder (64.8% accuracy) against domain-specific CryptoBERT transformer. Key finding: sentiment is reactive, not predictive at hourly timeframes (52.9% vs 50.9% baseline). Demonstrates academic rigor in hypothesis testing and critical analysis of negative results.",
+      "keywords": [
+        "python",
+        "nlp",
+        "deep learning",
+        "pytorch",
+        "transformers",
+        "sentiment analysis",
+        "cryptocurrency",
+        "research",
+        "time-series"
+      ],
+      "tech_stack": [
+        "Python",
+        "PyTorch",
+        "Transformers",
+        "Scikit-learn",
+        "CryptoBERT",
+        "PRAW",
+        "Telethon",
+        "Pandas"
+      ],
+      "key_metrics": "2000+ hours analyzed, 52.9% accuracy (vs 50.9% baseline), 5 data sources integrated, custom vs pre-trained comparison",
+      "relevance_tags": [
+        "nlp",
+        "research",
+        "deep_learning",
+        "data_science",
+        "fintech"
+      ],
+      "github_url": "https://github.com/JPmarsxxxi/crypto-sentiment-analysis",
+      "priority": 8
+    },
+    {
+      "id": "multimodal_news_classification",
+      "name": "Multimodal News Classification: CNN vs LSTM",
+      "summary": "Comparative study of image-based CNN and text-based LSTM for multi-label classification of NYT articles",
+      "description": "Built and compared two deep learning approaches for classifying New York Times articles into sections using multimodal data. CNN processes article images (128x256) while LSTM analyzes captions. Implemented custom architectures with proper train/test splitting, multi-label classification (sigmoid activation), and comprehensive evaluation including per-class metrics and top-k predictions. Critical analysis identifies strengths of each modality.",
+      "keywords": [
+        "python",
+        "deep learning",
+        "cnn",
+        "lstm",
+        "tensorflow",
+        "keras",
+        "multimodal",
+        "computer vision",
+        "nlp"
+      ],
+      "tech_stack": [
+        "TensorFlow/Keras",
+        "CNN",
+        "LSTM",
+        "NumPy",
+        "Pandas",
+        "Scikit-learn"
+      ],
+      "key_metrics": "Multi-label classification, CNN vs LSTM comparison, top-3 prediction analysis, academic coursework project",
+      "relevance_tags": [
+        "deep_learning",
+        "computer_vision",
+        "nlp",
+        "multimodal_ai",
+        "academic"
+      ],
+      "github_url": "https://github.com/JPmarsxxxi/multimodal-news-classification",
+      "priority": 7
+    },
+    {
+      "id": "fpl_prediction",
+      "name": "Fantasy Premier League Prediction System",
+      "summary": "Time-series ML regression with critical data leakage detection, achieving realistic 35% R² after fixing unrealistic 98% R²",
+      "description": "Built end-to-end ML pipeline using Random Forest and XGBoost to predict FPL player points from API data. Key achievement: identified and fixed data leakage that inflated R² from realistic 0.35 to unrealistic 0.98. Demonstrates production ML understanding through temporal feature engineering (rolling stats, lag features), hyperparameter optimization (12% RMSE improvement), and critical validation of model performance against domain expectations.",
+      "keywords": [
+        "python",
+        "machine learning",
+        "time-series",
+        "data leakage",
+        "sports analytics",
+        "scikit-learn",
+        "xgboost",
+        "feature engineering"
+      ],
+      "tech_stack": [
+        "Python",
+        "Scikit-learn",
+        "XGBoost",
+        "Pandas",
+        "NumPy",
+        "Matplotlib"
+      ],
+      "key_metrics": "Data leakage detection (0.98 → 0.35 R²), 12% RMSE improvement via tuning, 2000+ time-series records, realistic production metrics",
+      "relevance_tags": [
+        "data_science",
+        "ml_engineering",
+        "sports_analytics",
+        "critical_thinking",
+        "production_ml"
+      ],
+      "github_url": "https://github.com/JPmarsxxxi/fpl-prediction",
+      "priority": 9
+    }
+  ]
+}
