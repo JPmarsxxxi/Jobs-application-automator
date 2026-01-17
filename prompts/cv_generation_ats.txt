@@ -11,59 +11,101 @@ Description: {{job_description}}
 CANDIDATE INFORMATION:
 {{user_info}}
 
-TOP MATCHED PROJECTS TO HIGHLIGHT:
+TOP MATCHED PROJECTS (ORDERED BY RELEVANCE):
 {{matched_projects}}
 
+CRITICAL REQUIREMENTS:
+1. INCLUDE ALL PROJECTS provided above (typically 3 projects)
+2. Order projects by relevance score (most relevant first)
+3. Each project MUST have quantified metrics and specific technologies
+4. Adapt project descriptions to emphasize aspects relevant to THIS job
+
 ATS OPTIMIZATION REQUIREMENTS:
-1. Use standard section headers: EDUCATION, EXPERIENCE, PROJECTS, TECHNICAL SKILLS
+1. Use standard section headers: EDUCATION, PROJECTS, TECHNICAL SKILLS, EXPERIENCE
 2. NO tables, columns, text boxes, images, or complex formatting
-3. Use standard fonts: Arial, Calibri, Times New Roman
+3. Use standard fonts: Calibri or Arial
 4. Single column layout only
-5. Use bullet points with action verbs
+5. Use bullet points with action verbs (Built, Developed, Engineered, Implemented, Designed)
 6. Include keywords from job description naturally
-7. Quantify achievements with metrics
+7. Quantify ALL achievements with specific metrics
 8. No pronouns (I, me, my)
-9. Chronological order (most recent first)
-10. File format: Plain text that can be converted to .docx or .pdf
+9. Most relevant content first
 
 KEYWORD INTEGRATION:
-Extract key skills and technologies from the job description and integrate them naturally into the CV, especially in:
-- Technical Skills section
-- Project descriptions
-- Experience descriptions
+Extract key skills and technologies from the job description and integrate them naturally into:
+- Project descriptions (emphasize relevant technologies and outcomes)
+- Technical Skills section (list matching technologies first)
+- Make connections between projects and job requirements explicit
 
-OUTPUT FORMAT:
-Generate the CV as plain text with clear section separators. Use this structure:
+CV STRUCTURE:
+Use this exact format:
 
 [CANDIDATE NAME]
 [Email] | [Phone] | [Location]
 [LinkedIn] | [GitHub]
 
+──────────────────────────────────────────────────────
+
 EDUCATION
-[Most Recent Degree]
-[Institution Name]
-[Graduation Date]
-[Relevant coursework or achievements]
+
+[Degree Name] - [Expected Graduation or Graduation Date]
+[Institution Name], [Location]
+[GPA if strong] | Relevant Coursework: [List 3-4 relevant courses]
+
+[Previous Degree if relevant]
+[Institution Name], [Location]
+
+──────────────────────────────────────────────────────
 
 PROJECTS
-[Highlight the top matched projects with quantified results]
-• Project Name
-  - Achievement with metrics (built, developed, engineered, etc.)
-  - Technologies used (match job description keywords)
-  - Business value or impact
+
+[Project 1 Name - MOST RELEVANT]
+• [Action verb] [specific achievement] achieving [quantified result] using [specific technologies matching job]
+• [Technical detail] resulting in [business impact with numbers]
+• Technologies: [List technologies, emphasizing those in job description]
+• GitHub: [URL if available]
+
+[Project 2 Name - SECOND MOST RELEVANT]
+• [Action verb] [specific achievement] achieving [quantified result] using [specific technologies matching job]
+• [Technical detail] resulting in [business impact with numbers]
+• Technologies: [List technologies, emphasizing those in job description]
+• GitHub: [URL if available]
+
+[Project 3 Name - THIRD MOST RELEVANT]
+• [Action verb] [specific achievement] achieving [quantified result] using [specific technologies matching job]
+• [Technical detail] resulting in [business impact with numbers]
+• Technologies: [List technologies, emphasizing those in job description]
+• GitHub: [URL if available]
+
+──────────────────────────────────────────────────────
 
 TECHNICAL SKILLS
-Languages: [List matching job requirements]
-Frameworks/Libraries: [List matching job requirements]
-Tools & Technologies: [List matching job requirements]
-Domain Knowledge: [Relevant domains]
+
+Programming Languages: [List languages, prioritize those in job description]
+ML/AI Frameworks: [PyTorch, TensorFlow, scikit-learn, etc. - prioritize job matches]
+Tools & Technologies: [Docker, Git, AWS, etc. - prioritize job matches]
+Specializations: [Computer Vision, NLP, Time-Series, etc. - match to job]
+
+──────────────────────────────────────────────────────
 
 EXPERIENCE (if applicable)
+
 [Job Title]
-[Company Name] | [Location] | [Date Range]
-• Achievement bullet point with metrics
-• Achievement bullet point with metrics
+[Company Name] | [Location] | [Start Date - End Date]
+• [Achievement with quantified impact using action verb]
+• [Achievement with quantified impact using action verb]
+• Technologies: [Relevant technologies]
 
-Generate a professional, ATS-optimized CV that maximizes the candidate's chances of passing automated screening while remaining truthful and accurate.
+──────────────────────────────────────────────────────
 
-IMPORTANT: Output ONLY the CV content, no additional commentary.
+IMPORTANT INSTRUCTIONS:
+1. Output ONLY the CV content, no commentary
+2. MUST include ALL projects provided (typically 3)
+3. Each project needs 2-3 bullet points + Technologies line
+4. Projects ordered by relevance to THIS specific job
+5. Emphasize different aspects of each project based on job requirements
+6. Use specific numbers and metrics in EVERY bullet point
+7. Make it clear how each project relates to the target role
+8. Keep total CV to 1 page if possible (concise but impactful)
+
+Generate the CV now:
