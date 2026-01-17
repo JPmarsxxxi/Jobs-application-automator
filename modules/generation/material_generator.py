@@ -88,14 +88,25 @@ Skills: {', '.join(self.user_info.get('skills', []))}
         with open(prompt_path, "r", encoding="utf-8") as f:
             prompt_template = f.read()
 
-        # Format matched projects
+        # Format matched projects - ordered by relevance score
         project_details = []
-        for project_id in matched_projects.get("top_projects", [])[:3]:
+        project_scores = matched_projects.get("project_scores", [])[:3]
+
+        for i, score_data in enumerate(project_scores, 1):
+            project_id = score_data.get("project_id")
+            project_name = score_data.get("project_name", "Unknown")
+            relevance_score = score_data.get("score", 0)
+            reasoning = score_data.get("reasoning", "")
+
             details = self.project_matcher.get_project_details(project_id)
             if details:
-                project_details.append(details)
+                # Add relevance ranking to help LLM prioritize
+                ranked_detail = f"PROJECT #{i} (Relevance Score: {relevance_score}/10)\n"
+                ranked_detail += f"Why relevant: {reasoning}\n\n"
+                ranked_detail += details
+                project_details.append(ranked_detail)
 
-        matched_projects_text = "\n\n".join(project_details)
+        matched_projects_text = "\n\n" + "="*60 + "\n\n".join(project_details)
 
         # Prepare prompt variables
         variables = {
@@ -131,24 +142,94 @@ Skills: {', '.join(self.user_info.get('skills', []))}
             filename = f"{self.user_info['name'].replace(' ', '_')}_CV_{safe_company}_ATS"
             cv_path = self.output_dir / "cvs" / f"{filename}.docx"
 
-            # Create Word document
+            # Create professional Word document
             doc = Document()
 
-            # Set margins
+            # Set margins (standard professional CV margins)
             sections = doc.sections
             for section in sections:
                 section.top_margin = Inches(0.5)
                 section.bottom_margin = Inches(0.5)
-                section.left_margin = Inches(0.75)
-                section.right_margin = Inches(0.75)
+                section.left_margin = Inches(0.7)
+                section.right_margin = Inches(0.7)
 
-            # Add CV content
-            for line in cv_text.split("\n"):
-                paragraph = doc.add_paragraph(line)
-                # Use standard font
-                for run in paragraph.runs:
+            # Process CV content with professional formatting
+            lines = cv_text.split("\n")
+            for line in lines:
+                line = line.strip()
+
+                if not line:
+                    # Empty line - add small spacing
+                    doc.add_paragraph()
+                    continue
+
+                # Detect section headers (all caps or starts with common headers)
+                is_header = (
+                    line.isupper() or
+                    line.startswith("EDUCATION") or
+                    line.startswith("PROJECTS") or
+                    line.startswith("TECHNICAL SKILLS") or
+                    line.startswith("EXPERIENCE") or
+                    line.startswith("SKILLS") or
+                    "────" in line  # Separator lines
+                )
+
+                # Detect name (first non-empty line, typically)
+                is_name = (
+                    len(doc.paragraphs) == 0 and
+                    not line.startswith("•") and
+                    not ":" in line[:20]
+                )
+
+                # Skip separator lines
+                if "────" in line or "===" in line:
+                    doc.add_paragraph()
+                    continue
+
+                # Add paragraph with appropriate formatting
+                if is_name:
+                    # Name - large, bold
+                    p = doc.add_paragraph()
+                    run = p.add_run(line)
                     run.font.name = "Calibri"
-                    run.font.size = Pt(11)
+                    run.font.size = Pt(16)
+                    run.font.bold = True
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+                elif is_header:
+                    # Section header - bold, slightly larger
+                    doc.add_paragraph()  # Add space before header
+                    p = doc.add_paragraph()
+                    run = p.add_run(line)
+                    run.font.name = "Calibri"
+                    run.font.size = Pt(12)
+                    run.font.bold = True
+                    p.space_after = Pt(6)
+
+                elif line.startswith("•"):
+                    # Bullet point
+                    p = doc.add_paragraph(line[1:].strip(), style='List Bullet')
+                    for run in p.runs:
+                        run.font.name = "Calibri"
+                        run.font.size = Pt(11)
+                    p.paragraph_format.left_indent = Inches(0.25)
+                    p.space_after = Pt(3)
+
+                elif "|" in line and len(line) < 100:
+                    # Contact info or inline details - centered
+                    p = doc.add_paragraph()
+                    run = p.add_run(line)
+                    run.font.name = "Calibri"
+                    run.font.size = Pt(10)
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+                else:
+                    # Regular text
+                    p = doc.add_paragraph(line)
+                    for run in p.runs:
+                        run.font.name = "Calibri"
+                        run.font.size = Pt(11)
+                    p.space_after = Pt(3)
 
             # Save document
             doc.save(cv_path)
