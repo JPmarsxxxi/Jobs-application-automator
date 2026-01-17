@@ -58,6 +58,9 @@ workspace/logs/*.db
 workspace/logs/*.txt
 workspace/logs/daily_summaries/
 
+# Browser Sessions (cookies, persistent contexts)
+workspace/.browser_sessions/
+
 # Temporary Files
 *.tmp
 *.log

@@ -6,8 +6,11 @@ Abstract base class for platform-specific scrapers
 
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from playwright.sync_api import sync_playwright, Browser, Page, Playwright
+from playwright.sync_api import sync_playwright, Browser, BrowserContext, Page, Playwright
 import time
+import random
+from pathlib import Path
+import json
 
 from modules.scraping.job_models import JobPosting, ScraperConfig
 from modules.core.logger import get_logger
@@ -28,8 +31,13 @@ class BaseScraper(ABC):
         self.logger = get_logger()
         self.playwright: Optional[Playwright] = None
         self.browser: Optional[Browser] = None
+        self.context: Optional[BrowserContext] = None
         self.page: Optional[Page] = None
         self.jobs: List[JobPosting] = []
+        
+        # Persistent session storage
+        self.session_dir = Path("workspace/.browser_sessions")
+        self.session_dir.mkdir(parents=True, exist_ok=True)
 
     @property
     @abstractmethod
@@ -43,14 +51,52 @@ class BaseScraper(ABC):
         """Base URL for the platform"""
         pass
 
-    def start_browser(self):
-        """Start Playwright browser"""
+    def start_browser(self, persistent: bool = True):
+        """
+        Start Playwright browser with persistent context
+        
+        Args:
+            persistent: If True, uses persistent browser context (saves cookies/session)
+        """
         try:
             self.playwright = sync_playwright().start()
-            self.browser = self.playwright.chromium.launch(
-                headless=self.config.headless
-            )
-            self.page = self.browser.new_page()
+            
+            # Create persistent context path for this platform
+            context_path = self.session_dir / f"{self.platform_name}_context"
+            
+            if persistent and context_path.exists():
+                # Use existing persistent context
+                self.logger.info(f"Loading existing browser session for {self.platform_name}...")
+                self.context = self.playwright.chromium.launch_persistent_context(
+                    user_data_dir=str(context_path),
+                    headless=self.config.headless,
+                    channel=None,  # Use default Chromium
+                )
+                # Get the first page from persistent context
+                if len(self.context.pages) > 0:
+                    self.page = self.context.pages[0]
+                else:
+                    self.page = self.context.new_page()
+            else:
+                # Create new browser with persistent context
+                if persistent:
+                    self.logger.info(f"Creating new persistent browser session for {self.platform_name}...")
+                    self.context = self.playwright.chromium.launch_persistent_context(
+                        user_data_dir=str(context_path),
+                        headless=self.config.headless,
+                        channel=None,
+                    )
+                    if len(self.context.pages) > 0:
+                        self.page = self.context.pages[0]
+                    else:
+                        self.page = self.context.new_page()
+                else:
+                    # Non-persistent (old behavior)
+                    self.browser = self.playwright.chromium.launch(
+                        headless=self.config.headless
+                    )
+                    self.context = self.browser.new_context()
+                    self.page = self.context.new_page()
 
             # Set timeout
             self.page.set_default_timeout(self.config.timeout)
@@ -61,13 +107,35 @@ class BaseScraper(ABC):
             self.logger.error(f"Error starting browser: {e}")
             raise
 
-    def close_browser(self):
-        """Close browser and cleanup"""
+    def close_browser(self, save_session: bool = True):
+        """
+        Close browser and cleanup
+        
+        Args:
+            save_session: If True, saves cookies before closing (for persistent context)
+        """
         try:
-            if self.page:
+            # Save cookies if using persistent context
+            if save_session and self.context:
+                try:
+                    cookies_path = self.session_dir / f"{self.platform_name}_cookies.json"
+                    cookies = self.context.cookies()
+                    with open(cookies_path, 'w') as f:
+                        json.dump(cookies, f, indent=2)
+                    self.logger.debug(f"Saved cookies to {cookies_path}")
+                except Exception as e:
+                    self.logger.debug(f"Could not save cookies: {e}")
+            
+            # Close page and context/browser
+            if self.page and not self.context:
+                # Only close page if not using persistent context
                 self.page.close()
-            if self.browser:
+            
+            if self.context:
+                self.context.close()
+            elif self.browser:
                 self.browser.close()
+                
             if self.playwright:
                 self.playwright.stop()
 
@@ -132,6 +200,9 @@ class BaseScraper(ABC):
         try:
             self.start_browser()
 
+            # Login if required (platform-specific)
+            self.login_if_required()
+
             for search_term in self.config.search_terms:
                 if len(self.jobs) >= self.config.max_results:
                     self.logger.info(f"Reached max results limit: {self.config.max_results}")
@@ -143,7 +214,15 @@ class BaseScraper(ABC):
                 search_url = self.build_search_url(search_term)
                 self.logger.debug(f"URL: {search_url}")
 
-                self.page.goto(search_url)
+                self.page.goto(search_url, wait_until="domcontentloaded")
+                
+                # Human-like behavior: wait after page load
+                time.sleep(random.uniform(2.0, 4.0))
+                
+                # Scroll to trigger lazy loading
+                self.page.evaluate("window.scrollTo(0, document.body.scrollHeight / 3)")
+                time.sleep(random.uniform(1.0, 2.5))
+                
                 self.wait_for_rate_limit()
 
                 # Extract job cards
