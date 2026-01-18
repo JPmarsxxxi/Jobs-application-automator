@@ -66,13 +66,32 @@ class CVTemplateBuilder:
         content['LINKEDIN'] = self.user_info.get('linkedin', '')
         content['LOCATION'] = self.user_info.get('location', '')
 
-        # Education
+        # Skills - Templated (no LLM generation)
+        # Fixed categories to prevent LLM circular logic like "Machine Learning & AI: Machine Learning"
+        content['SKILLS_CATEGORIZED'] = """Programming & Tools: Python, SQL, Git, Jupyter
+ML/AI Frameworks: TensorFlow, Keras, PyTorch, Scikit-learn, XGBoost
+Deep Learning: CNN, LSTM, Transformers (BERT), Computer Vision (YOLOv8, OpenCV)
+Data Engineering: API Integration, Data Pipelines, FFmpeg, Pandas, NumPy
+Specializations: NLP, Sentiment Analysis, Automated Systems, Model Optimization"""
+
+        # Education - Include BOTH degrees (templated, not LLM-generated)
         current_edu = self.user_info.get('current_education', '')
         grad_date = self.user_info.get('graduation_date', '')
         if not grad_date and 'msc' in current_edu.lower():
             grad_date = 'Expected June 2026'
 
-        content['EDUCATION'] = f"{current_edu}\n{grad_date}".strip()
+        previous_edu = self.user_info.get('previous_education', '')
+
+        # Format education section with both degrees
+        education_lines = []
+        if current_edu:
+            education_lines.append(current_edu)
+            if grad_date:
+                education_lines.append(grad_date)
+        if previous_edu:
+            education_lines.append(previous_edu)
+
+        content['EDUCATION'] = "\n".join(education_lines)
 
         # Certifications (optional)
         certs = self.user_info.get('certifications', [])
@@ -103,18 +122,10 @@ class CVTemplateBuilder:
             return None
         content['PROFESSIONAL_SUMMARY'] = summary
 
-        # Section 2: Skills Categorization
-        skills = self._generate_section(
-            section_name='skills_categorized',
-            prompt_file='skills_categorized.txt',
-            job=job,
-            matched_projects=matched_projects
-        )
-        if not skills:
-            return None
-        content['SKILLS_CATEGORIZED'] = skills
+        # Skills are now templated in _prepare_static_content() - no LLM generation needed
+        # This prevents circular logic like "Machine Learning & AI: Machine Learning"
 
-        # Section 3-5: Project bullets (one section per project)
+        # Section 2-4: Project bullets (one section per project)
         for i, project in enumerate(matched_projects[:3], 1):
             bullets = self._generate_project_bullets(job, project, i)
             if not bullets:
@@ -338,12 +349,22 @@ Experience: {self.user_info.get('experience_summary', 'Recent graduate')}
             name_run.font.size = Pt(16)
             name_run.bold = True
 
-        # Contact info (10pt, centered)
-        contact = f"{content.get('EMAIL', '')} | {content.get('PHONE', '')} | {content.get('LINKEDIN', '')} | {content.get('LOCATION', '')}"
-        contact_para = doc.add_paragraph(contact)
-        contact_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        if contact_para.runs:
-            contact_para.runs[0].font.size = Pt(10)
+        # Contact info - Line 1: Location | Phone | Email (10pt, centered)
+        contact_line1 = f"{content.get('LOCATION', '')} | {content.get('PHONE', '')} | {content.get('EMAIL', '')}"
+        contact_para1 = doc.add_paragraph(contact_line1)
+        contact_para1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        if contact_para1.runs:
+            contact_para1.runs[0].font.size = Pt(10)
+
+        # Contact info - Line 2: LinkedIn | GitHub (10pt, centered)
+        github = self.user_info.get('github', '')
+        contact_line2 = f"{content.get('LINKEDIN', '')}"
+        if github:
+            contact_line2 += f" | {github}"
+        contact_para2 = doc.add_paragraph(contact_line2)
+        contact_para2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        if contact_para2.runs:
+            contact_para2.runs[0].font.size = Pt(10)
 
         # Professional Summary
         self._add_section(doc, "PROFESSIONAL SUMMARY", content['PROFESSIONAL_SUMMARY'])
