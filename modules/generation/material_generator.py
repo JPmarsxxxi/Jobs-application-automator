@@ -18,6 +18,7 @@ from modules.scraping.job_models import JobPosting
 from modules.core.logger import get_logger
 from modules.utils.helpers import sanitize_filename
 from modules.utils.cv_validator import CVValidator
+from modules.utils.cv_fixer import get_cv_fixer
 
 
 class MaterialGenerator:
@@ -41,6 +42,7 @@ class MaterialGenerator:
         self.ollama = get_ollama_client()
         self.project_matcher = get_project_matcher()
         self.validator = CVValidator()
+        self.fixer = get_cv_fixer()
 
         # Create output directories
         (self.output_dir / "cvs").mkdir(parents=True, exist_ok=True)
@@ -48,7 +50,23 @@ class MaterialGenerator:
         (self.output_dir / "failed_cvs").mkdir(parents=True, exist_ok=True)
 
     def format_user_info(self) -> str:
-        """Format user information for prompts"""
+        """Format user information with proper defaults"""
+
+        # Handle missing graduation date
+        grad_date = self.user_info.get('graduation_date')
+        if not grad_date:
+            # Infer from current education if possible
+            current_edu = self.user_info.get('current_education', '')
+            if 'expected' in current_edu.lower() or 'msc' in current_edu.lower():
+                grad_date = 'Expected June 2026'  # Default for current students
+            else:
+                grad_date = '[OMIT - not provided]'
+
+        # Handle missing previous education
+        prev_edu = self.user_info.get('previous_education', '')
+        if not prev_edu or len(prev_edu.strip()) == 0:
+            prev_edu = '[OMIT - not provided]'
+
         info = f"""
 Name: {self.user_info.get('name', 'Unknown')}
 Email: {self.user_info.get('email', '')}
@@ -59,12 +77,14 @@ GitHub: {self.user_info.get('github', '')}
 
 Education:
 Current: {self.user_info.get('current_education', '')}
-Graduation Date: {self.user_info.get('graduation_date', '')}
-Previous: {self.user_info.get('previous_education', '')}
+Graduation Date: {grad_date}
+Previous: {prev_edu}
 
 Experience: {self.user_info.get('years_experience', {}).get('total', 0)} years total
 
 Skills: {', '.join(self.user_info.get('skills', []))}
+
+IMPORTANT: Any field marked [OMIT - not provided] should be completely excluded from the CV output.
 """
         return info
 
@@ -167,18 +187,71 @@ Skills: {', '.join(self.user_info.get('skills', []))}
             if attempt > 0:
                 self.logger.info(f"Retry attempt {attempt + 1}/{max_retries}")
 
-            # Generate CV
-            cv_text = self.ollama.generate_text(
-                prompt,
-                temperature=0.5 - (attempt * 0.1),  # Lower temperature on retries for more consistency
-                max_tokens=2000,
-            )
+            # Attempt 0: Initial generation
+            if attempt == 0:
+                cv_text = self.ollama.generate_text(
+                    prompt,
+                    temperature=0.5,
+                    max_tokens=2000,
+                )
+
+            # Attempt 1: Try targeted fixes first (faster, more reliable)
+            elif attempt == 1 and cv_text and validation_result:
+                can_fix, fixable_issues = self.fixer.can_fix_issues(
+                    validation_result["critical_issues"]
+                )
+
+                if can_fix:
+                    self.logger.info("Attempting targeted section fixes...")
+                    fixed_cv = self.fixer.fix_cv(
+                        cv_text,
+                        validation_result["critical_issues"],
+                        self.user_info,
+                        {
+                            "company": job.company,
+                            "title": job.title,
+                            "description": job.description,
+                        },
+                        matched_projects,
+                    )
+
+                    if fixed_cv:
+                        cv_text = fixed_cv
+                    else:
+                        # Fall back to full regeneration
+                        self.logger.info("Targeted fixes failed, doing full regeneration...")
+                        correction_instructions = self._build_correction_prompt(validation_result)
+                        prompt = prompt + "\n\n" + correction_instructions
+                        cv_text = self.ollama.generate_text(
+                            prompt,
+                            temperature=0.4,
+                            max_tokens=2000,
+                        )
+                else:
+                    # Issues not fixable with sections, do full regeneration
+                    correction_instructions = self._build_correction_prompt(validation_result)
+                    prompt = prompt + "\n\n" + correction_instructions
+                    cv_text = self.ollama.generate_text(
+                        prompt,
+                        temperature=0.4,
+                        max_tokens=2000,
+                    )
+
+            # Attempt 2+: Full regeneration with stricter params
+            else:
+                correction_instructions = self._build_correction_prompt(validation_result)
+                prompt = prompt + "\n\n" + correction_instructions
+                cv_text = self.ollama.generate_text(
+                    prompt,
+                    temperature=0.3,
+                    max_tokens=2000,
+                )
 
             if not cv_text:
                 self.logger.error(f"Failed to generate CV on attempt {attempt + 1}")
                 continue
 
-            # Validate the generated CV
+            # Validate the generated/fixed CV
             validation_result = self.validator.validate(cv_text, self.user_info)
 
             if validation_result["valid"]:
@@ -190,17 +263,13 @@ Skills: {', '.join(self.user_info.get('skills', []))}
                 self.logger.warning(f"❌ CV validation failed on attempt {attempt + 1}")
                 self.logger.warning(f"Issues: {', '.join(validation_result['critical_issues'][:3])}")
 
-                if attempt < max_retries - 1:
-                    # Add specific correction instructions to prompt for retry
-                    correction_instructions = self._build_correction_prompt(validation_result)
-                    prompt = prompt + "\n\n" + correction_instructions
-
         # If all retries failed, save for manual review
         if not validation_result or not validation_result["valid"]:
             self.logger.error("CV generation failed after all retries")
             if cv_text:
                 # Save failed CV for debugging
-                failed_path = self.output_dir / "failed_cvs" / f"FAILED_{job.company}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                safe_company = sanitize_filename(job.company)
+                failed_path = self.output_dir / "failed_cvs" / f"FAILED_{safe_company}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
                 with open(failed_path, "w", encoding="utf-8") as f:
                     f.write("=== FAILED CV GENERATION ===\n\n")
                     f.write(cv_text)

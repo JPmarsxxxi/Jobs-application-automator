@@ -32,11 +32,17 @@ class CVValidator:
     # Placeholder patterns
     PLACEHOLDER_PATTERNS = [
         r"\[.*?\]",  # [like this]
+        r"\{\{.*?\}\}",  # {{like this}} - template markers
         r"\bTBD\b",
-        r"\bN/A\b",
+        r"\bN/?A\b",  # N/A or NA
         r"\bTODO\b",
         r"\(to be determined\)",
         r"\(insert.*?\)",
+        r"not provided",  # Common placeholder phrase
+        r"to be confirmed",
+        r"\[quantified metrics\]",  # Specific ones seen in errors
+        r"\[Graduation Date\]",
+        r"\[Expected Graduation\]",
     ]
 
     # Required sections
@@ -182,18 +188,30 @@ class CVValidator:
                                 )
 
     def _check_project_count(self, cv_text: str):
-        """Check that 3 projects are included"""
+        """Check that exactly 3 projects are included"""
         projects_section = self._extract_section(cv_text, "KEY PROJECTS")
-        if projects_section:
-            # Count project titles (lines that aren't bullets and have substance)
-            lines = [l.strip() for l in projects_section.split('\n') if l.strip() and not l.strip().startswith('•')]
-            # Filter for likely project titles (not section header)
-            project_titles = [l for l in lines if l != "KEY PROJECTS" and len(l) > 10 and not l.startswith("Technologies:")]
+        if not projects_section:
+            self.critical_issues.append("KEY PROJECTS section missing entirely")
+            return
 
-            if len(project_titles) < 3:
-                self.critical_issues.append(
-                    f"Only {len(project_titles)} projects found. All 3 provided projects should be included."
-                )
+        # Count project titles more accurately
+        # Look for lines followed by "Technologies:" line
+        lines = projects_section.split('\n')
+        project_count = 0
+
+        for i, line in enumerate(lines):
+            # Project title is typically followed by Technologies: line
+            if i < len(lines) - 1:
+                next_line = lines[i + 1].strip()
+                if next_line.startswith("Technologies:") and len(line.strip()) > 10:
+                    if not line.strip().startswith("•") and line.strip() != "KEY PROJECTS":
+                        project_count += 1
+
+        if project_count < 3:
+            self.critical_issues.append(
+                f"Only {project_count} projects found. All 3 provided projects must be included. "
+                f"Each project needs: Title line, Technologies line, 2-3 bullet points."
+            )
 
     def _check_ai_cliches(self, cv_text: str):
         """Check for overuse of AI clichés"""

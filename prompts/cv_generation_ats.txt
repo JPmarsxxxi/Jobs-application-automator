@@ -33,14 +33,35 @@ CRITICAL RULES - NEVER BREAK THESE:
    - Metrics: Only use numbers from project descriptions
    - Experience: Only include if explicitly provided
 
-5. ALL 3 PROJECTS MUST BE INCLUDED
-   - Each project needs 2-3 achievement bullets + Technologies line
-   - Order by relevance to THIS job (most relevant first)
-   - Adapt descriptions to emphasize job-relevant aspects
+5. ALL 3 PROJECTS MUST BE INCLUDED - MANDATORY - THIS IS CRITICAL
+   - You will receive EXACTLY 3 projects below
+   - ALL 3 must appear in the KEY PROJECTS section
+   - Each project MUST have: Title line → Technologies line → 2-3 bullet points
+   - Order by relevance (most relevant first), but ALL 3 must be present
+   - If you include fewer than 3 projects, the CV will be REJECTED
+
+   EXAMPLE FORMAT (mandatory structure):
+   KEY PROJECTS
+
+   [Project 1 Name]
+   Technologies: [tech list]
+   • [Bullet with metrics]
+   • [Bullet with metrics]
+
+   [Project 2 Name]
+   Technologies: [tech list]
+   • [Bullet with metrics]
+   • [Bullet with metrics]
+
+   [Project 3 Name]
+   Technologies: [tech list]
+   • [Bullet with metrics]
+   • [Bullet with metrics]
 
 6. NO PLACEHOLDERS
-   - Never use [brackets], TBD, N/A, TODO in final output
-   - If data is missing, omit that section entirely
+   - Never use [brackets], {{double braces}}, TBD, N/A, TODO in final output
+   - Never write "not provided", "[quantified metrics]", "[Graduation Date]"
+   - If specific data is missing, omit that field entirely (don't put placeholder)
 
 ═══════════════════════════════════════════════════════════════════════════
 CV STRUCTURE (FOLLOW EXACTLY):
