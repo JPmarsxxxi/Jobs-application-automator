@@ -10,9 +10,8 @@ from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-from modules.llm.ollama_client import OllamaClient
+from modules.generation.ollama_client import OllamaClient
 from templates.cv_template_structure import get_cv_template, get_section_order
-from modules.utils.file_utils import read_file
 
 
 class CVTemplateBuilder:
@@ -133,7 +132,8 @@ class CVTemplateBuilder:
 
                 # Load prompt template
                 prompt_path = self.prompts_dir / 'cv_sections' / prompt_file
-                prompt_template = read_file(prompt_path)
+                with open(prompt_path, 'r', encoding='utf-8') as f:
+                    prompt_template = f.read()
 
                 # Prepare context
                 context = self._prepare_context(job, matched_projects)
@@ -179,7 +179,8 @@ class CVTemplateBuilder:
 
                 # Load prompt
                 prompt_path = self.prompts_dir / 'cv_sections' / 'project_bullets.txt'
-                prompt_template = read_file(prompt_path)
+                with open(prompt_path, 'r', encoding='utf-8') as f:
+                    prompt_template = f.read()
 
                 # Prepare context
                 context = {
