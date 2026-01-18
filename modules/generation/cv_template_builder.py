@@ -74,22 +74,28 @@ Deep Learning: CNN, LSTM, Transformers (BERT), Computer Vision (YOLOv8, OpenCV)
 Data Engineering: API Integration, Data Pipelines, FFmpeg, Pandas, NumPy
 Specializations: NLP, Sentiment Analysis, Automated Systems, Model Optimization"""
 
-        # Education - Include BOTH degrees (templated, not LLM-generated)
-        current_edu = self.user_info.get('current_education', '')
-        grad_date = self.user_info.get('graduation_date', '')
-        if not grad_date and 'msc' in current_edu.lower():
-            grad_date = 'Expected June 2026'
+        # Professional Experience - Templated (no LLM generation)
+        content['PROFESSIONAL_EXPERIENCE'] = """Data Analytics Intern
+RCCG Department of Public Health | January 2024 – November 2024
 
-        previous_edu = self.user_info.get('previous_education', '')
+• Processed 500+ monthly financial transactions maintaining 99.8% accuracy
+• Analyzed payment patterns to identify trends for health outreach programs
+• Generated weekly reports supporting data-driven clinic operations
+• Collaborated with medical staff to optimize workflows, reducing processing time by 25%"""
 
-        # Format education section with both degrees
+        # Education - Include BOTH degrees with proper formatting (templated, not LLM-generated)
         education_lines = []
-        if current_edu:
-            education_lines.append(current_edu)
-            if grad_date:
-                education_lines.append(grad_date)
-        if previous_edu:
-            education_lines.append(previous_edu)
+
+        # MSc (current degree)
+        education_lines.append("Master of Science in Data Science (MSc)")
+        education_lines.append("University of Hertfordshire, UK | Expected Graduation: June 2026")
+        education_lines.append("Relevant Coursework: Machine Learning, Deep Learning, NLP, Big Data Analytics, Time Series Analysis")
+        education_lines.append("")  # Blank line
+
+        # BSc (previous degree)
+        education_lines.append("Bachelor of Science in Anatomy (BSc)")
+        education_lines.append("Bowen University | Graduated: May 2019")
+        education_lines.append("Relevant Coursework: Biostatistics, Research Methodology, Data Analysis, Quantitative Methods")
 
         content['EDUCATION'] = "\n".join(education_lines)
 
@@ -408,6 +414,9 @@ Experience: {self.user_info.get('experience_summary', 'Recent graduate')}
 
             # Spacing
             doc.add_paragraph()
+
+        # Professional Experience (before Education)
+        self._add_section(doc, "PROFESSIONAL EXPERIENCE", content['PROFESSIONAL_EXPERIENCE'])
 
         # Education
         self._add_section(doc, "EDUCATION", content['EDUCATION'])
