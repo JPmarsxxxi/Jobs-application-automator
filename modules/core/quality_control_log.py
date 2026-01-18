@@ -120,6 +120,7 @@ This log will be updated throughout the run with detailed information about:
         matched_projects: List[str],
         cv_content_preview: str,
         ats_score: Optional[float] = None,
+        validation_result: Optional[Dict[str, Any]] = None,
     ):
         """Log a CV that was generated"""
         self.stats["cvs_generated"] += 1
@@ -130,6 +131,26 @@ This log will be updated throughout the run with detailed information about:
 **File:** `{cv_file_path}`
 **Matched Projects:** {", ".join(matched_projects)}
 **ATS Optimization Score:** {ats_score if ats_score else "N/A"}/10
+
+#### Validation Results:
+"""
+        if validation_result:
+            entry += f"- **Status:** {'✅ PASSED' if validation_result['valid'] else '❌ FAILED'}\n"
+            entry += f"- **AI Detection Score:** {validation_result['ai_score']}/100 (lower is better)\n"
+
+            if validation_result.get("critical_issues"):
+                entry += f"- **Critical Issues:** {len(validation_result['critical_issues'])}\n"
+                for issue in validation_result['critical_issues'][:3]:
+                    entry += f"  - {issue}\n"
+
+            if validation_result.get("warnings"):
+                entry += f"- **Warnings:** {len(validation_result['warnings'])}\n"
+                for warning in validation_result['warnings'][:3]:
+                    entry += f"  - {warning}\n"
+        else:
+            entry += "- Validation not performed\n"
+
+        entry += f"""
 
 #### CV Content Preview (First 1000 chars):
 ```

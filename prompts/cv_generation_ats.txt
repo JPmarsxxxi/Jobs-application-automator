@@ -1,6 +1,4 @@
-You are an expert CV writer specializing in ATS (Applicant Tracking System) optimization.
-
-Your task is to generate a tailored, ATS-optimized CV for the following job application.
+You are an expert CV writer specializing in ATS-optimized, human-sounding CVs.
 
 JOB DETAILS:
 Company: {{company}}
@@ -14,98 +12,142 @@ CANDIDATE INFORMATION:
 TOP MATCHED PROJECTS (ORDERED BY RELEVANCE):
 {{matched_projects}}
 
-CRITICAL REQUIREMENTS:
-1. INCLUDE ALL PROJECTS provided above (typically 3 projects)
-2. Order projects by relevance score (most relevant first)
-3. Each project MUST have quantified metrics and specific technologies
-4. Adapt project descriptions to emphasize aspects relevant to THIS job
+═══════════════════════════════════════════════════════════════════════════
+CRITICAL RULES - NEVER BREAK THESE:
+═══════════════════════════════════════════════════════════════════════════
 
-ATS OPTIMIZATION REQUIREMENTS:
-1. Use standard section headers: EDUCATION, PROJECTS, TECHNICAL SKILLS, EXPERIENCE
-2. NO tables, columns, text boxes, images, or complex formatting
-3. Use standard fonts: Calibri or Arial
-4. Single column layout only
-5. Use bullet points with action verbs (Built, Developed, Engineered, Implemented, Designed)
-6. Include keywords from job description naturally
-7. Quantify ALL achievements with specific metrics
-8. No pronouns (I, me, my)
-9. Most relevant content first
+1. OUTPUT ONLY THE CV - NO meta-commentary like "Here is...", "I have generated...", "Below is..."
+   START IMMEDIATELY with the candidate's name.
 
-KEYWORD INTEGRATION:
-Extract key skills and technologies from the job description and integrate them naturally into:
-- Project descriptions (emphasize relevant technologies and outcomes)
-- Technical Skills section (list matching technologies first)
-- Make connections between projects and job requirements explicit
+2. NEVER include relevance scores, ratings, or internal analysis in the output
+   (e.g., no "8/10", "Relevance Score:", "Why relevant:")
 
-CV STRUCTURE:
-Use this exact format:
+3. NEVER use these AI clichés (BANNED):
+   - leveraged, spearheaded, utilized, synergized, orchestrated
+   - facilitated, strategized, pioneered, championed
+   Use NATURAL alternatives: Built, Developed, Created, Designed, Engineered, Implemented, Automated
 
-[CANDIDATE NAME]
-[Email] | [Phone] | [Location]
-[LinkedIn] | [GitHub]
+4. USE ONLY PROVIDED DATA - NEVER hallucinate:
+   - Dates: Use EXACTLY what's in user_info
+   - GPA: Only include if provided
+   - Metrics: Only use numbers from project descriptions
+   - Experience: Only include if explicitly provided
 
-──────────────────────────────────────────────────────
+5. ALL 3 PROJECTS MUST BE INCLUDED
+   - Each project needs 2-3 achievement bullets + Technologies line
+   - Order by relevance to THIS job (most relevant first)
+   - Adapt descriptions to emphasize job-relevant aspects
+
+6. NO PLACEHOLDERS
+   - Never use [brackets], TBD, N/A, TODO in final output
+   - If data is missing, omit that section entirely
+
+═══════════════════════════════════════════════════════════════════════════
+CV STRUCTURE (FOLLOW EXACTLY):
+═══════════════════════════════════════════════════════════════════════════
+
+{{name}}
+{{city}}, {{country}} | {{phone}} | {{email}}
+{{linkedin}} | {{github}}
+
+PROFESSIONAL SUMMARY
+[2-3 sentences dynamically tailored to THIS job. Include:
+- Current status (MSc Data Science student/graduate)
+- Key technical strengths relevant to this role
+- Career goal aligned with this position
+- Incorporate 3-4 keywords from job description naturally]
+
+CORE COMPETENCIES
+Programming Languages: [List languages, prioritize those in job description]
+ML/AI Frameworks: [PyTorch, TensorFlow, scikit-learn, etc. - prioritize job matches]
+Tools & Technologies: [Docker, Git, AWS, Playwright, etc. - prioritize job matches]
+Specializations: [Computer Vision, NLP, Time-Series, Automation, etc. - match to job]
+
+KEY PROJECTS
+
+[Project 1 Name - Most Relevant to This Job]
+Technologies: [List tech stack, emphasizing job-relevant technologies]
+• [Action verb] [specific technical achievement] achieving [quantified result] using [specific technologies]
+• [Technical implementation detail] resulting in [business impact with numbers]
+• [Architecture/methodology detail] demonstrating [relevant skill for job]
+
+[Project 2 Name - Second Most Relevant]
+Technologies: [List tech stack, emphasizing job-relevant technologies]
+• [Action verb] [specific achievement] with [quantified metrics]
+• [Technical detail] leading to [measurable impact]
+• [Relevant technical skill demonstration]
+
+[Project 3 Name - Third Most Relevant]
+Technologies: [List tech stack, emphasizing job-relevant technologies]
+• [Action verb] [specific achievement] with [quantified results]
+• [Technical implementation] resulting in [measurable outcome]
+
+EXPERIENCE
+[Only include this section if candidate has relevant work experience provided]
+[Job Title]
+[Company Name] | [Location] | [Start Date - End Date]
+• [Achievement with quantified impact]
+• [Achievement with quantified impact]
+• Technologies: [Relevant technologies]
 
 EDUCATION
 
-[Degree Name] - [Expected Graduation or Graduation Date]
+[Current/Most Recent Degree] - [Expected/Actual Graduation Date]
 [Institution Name], [Location]
-[GPA if strong] | Relevant Coursework: [List 3-4 relevant courses]
+Relevant Coursework: [List 3-4 relevant courses if applicable]
 
 [Previous Degree if relevant]
 [Institution Name], [Location]
 
-──────────────────────────────────────────────────────
+═══════════════════════════════════════════════════════════════════════════
+ATS OPTIMIZATION CHECKLIST:
+═══════════════════════════════════════════════════════════════════════════
 
-PROJECTS
+✓ Single column layout (no tables/graphics)
+✓ Standard section headers (UPPERCASE)
+✓ Calibri or Arial font (will be applied in .docx)
+✓ Keywords from job description integrated naturally
+✓ Action verbs varied (use different verbs, see approved list below)
+✓ Every achievement quantified with metrics
+✓ No pronouns (I, me, my)
+✓ Chronological order (most recent/relevant first)
 
-[Project 1 Name - MOST RELEVANT]
-• [Action verb] [specific achievement] achieving [quantified result] using [specific technologies matching job]
-• [Technical detail] resulting in [business impact with numbers]
-• Technologies: [List technologies, emphasizing those in job description]
-• GitHub: [URL if available]
+APPROVED ACTION VERBS (Use variety):
+Built, Developed, Engineered, Designed, Implemented, Created, Automated, Optimized,
+Architected, Constructed, Established, Formulated, Integrated, Launched, Modernized,
+Programmed, Refactored, Scaled, Streamlined, Transformed
 
-[Project 2 Name - SECOND MOST RELEVANT]
-• [Action verb] [specific achievement] achieving [quantified result] using [specific technologies matching job]
-• [Technical detail] resulting in [business impact with numbers]
-• Technologies: [List technologies, emphasizing those in job description]
-• GitHub: [URL if available]
+AVOID (AI tells):
+Leveraged, Spearheaded, Utilized, Synergized, Orchestrated, Facilitated, Strategized
 
-[Project 3 Name - THIRD MOST RELEVANT]
-• [Action verb] [specific achievement] achieving [quantified result] using [specific technologies matching job]
-• [Technical detail] resulting in [business impact with numbers]
-• Technologies: [List technologies, emphasizing those in job description]
-• GitHub: [URL if available]
+═══════════════════════════════════════════════════════════════════════════
+KEYWORD INTEGRATION STRATEGY:
+═══════════════════════════════════════════════════════════════════════════
 
-──────────────────────────────────────────────────────
+1. Analyze job description for key technical requirements
+2. In Professional Summary: Include 3-4 of the most important keywords naturally
+3. In Core Competencies: List matching technologies first
+4. In Projects: Emphasize aspects that use job-relevant technologies
+5. Make connections explicit but natural (avoid keyword stuffing)
 
-TECHNICAL SKILLS
+═══════════════════════════════════════════════════════════════════════════
+QUALITY STANDARDS:
+═══════════════════════════════════════════════════════════════════════════
 
-Programming Languages: [List languages, prioritize those in job description]
-ML/AI Frameworks: [PyTorch, TensorFlow, scikit-learn, etc. - prioritize job matches]
-Tools & Technologies: [Docker, Git, AWS, etc. - prioritize job matches]
-Specializations: [Computer Vision, NLP, Time-Series, etc. - match to job]
+• Every project bullet must have a NUMBER or METRIC (%, time saved, accuracy, data size)
+• Use SPECIFIC technologies, not generic terms ("PyTorch" not "deep learning framework")
+• Descriptions should sound HUMAN, not robotic
+• Vary sentence structure - don't start every bullet the same way
+• Focus on IMPACT and RESULTS, not just tasks
+• Make relevance to target job clear without explicitly stating it
 
-──────────────────────────────────────────────────────
+═══════════════════════════════════════════════════════════════════════════
 
-EXPERIENCE (if applicable)
-
-[Job Title]
-[Company Name] | [Location] | [Start Date - End Date]
-• [Achievement with quantified impact using action verb]
-• [Achievement with quantified impact using action verb]
-• Technologies: [Relevant technologies]
-
-──────────────────────────────────────────────────────
-
-IMPORTANT INSTRUCTIONS:
-1. Output ONLY the CV content, no commentary
-2. MUST include ALL projects provided (typically 3)
-3. Each project needs 2-3 bullet points + Technologies line
-4. Projects ordered by relevance to THIS specific job
-5. Emphasize different aspects of each project based on job requirements
-6. Use specific numbers and metrics in EVERY bullet point
-7. Make it clear how each project relates to the target role
-8. Keep total CV to 1 page if possible (concise but impactful)
-
-Generate the CV now:
+Generate the CV now. Remember:
+- Start IMMEDIATELY with name (no "Here is..." commentary)
+- Include ALL 3 projects with 2-3 bullets each
+- Use ONLY provided data (no hallucinations)
+- NEVER show relevance scores in output
+- Avoid AI clichés (leveraged, spearheaded, etc.)
+- Quantify EVERYTHING
+- Tailor Professional Summary to THIS specific job

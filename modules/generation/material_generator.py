@@ -17,6 +17,7 @@ from modules.generation.project_matcher import get_project_matcher
 from modules.scraping.job_models import JobPosting
 from modules.core.logger import get_logger
 from modules.utils.helpers import sanitize_filename
+from modules.utils.cv_validator import CVValidator
 
 
 class MaterialGenerator:
@@ -39,10 +40,12 @@ class MaterialGenerator:
         self.logger = get_logger()
         self.ollama = get_ollama_client()
         self.project_matcher = get_project_matcher()
+        self.validator = CVValidator()
 
         # Create output directories
         (self.output_dir / "cvs").mkdir(parents=True, exist_ok=True)
         (self.output_dir / "cover_letters").mkdir(parents=True, exist_ok=True)
+        (self.output_dir / "failed_cvs").mkdir(parents=True, exist_ok=True)
 
     def format_user_info(self) -> str:
         """Format user information for prompts"""
@@ -56,6 +59,7 @@ GitHub: {self.user_info.get('github', '')}
 
 Education:
 Current: {self.user_info.get('current_education', '')}
+Graduation Date: {self.user_info.get('graduation_date', '')}
 Previous: {self.user_info.get('previous_education', '')}
 
 Experience: {self.user_info.get('years_experience', {}).get('total', 0)} years total
@@ -63,6 +67,35 @@ Experience: {self.user_info.get('years_experience', {}).get('total', 0)} years t
 Skills: {', '.join(self.user_info.get('skills', []))}
 """
         return info
+
+    def _build_correction_prompt(self, validation_result: Dict[str, Any]) -> str:
+        """Build specific correction instructions based on validation issues"""
+        corrections = []
+        corrections.append("CRITICAL CORRECTIONS NEEDED:")
+        corrections.append("")
+
+        for issue in validation_result["critical_issues"]:
+            if "meta-commentary" in issue.lower():
+                corrections.append("• START IMMEDIATELY with the candidate's name. NO introductory text like 'Here is...'")
+            elif "relevance score" in issue.lower():
+                corrections.append("• REMOVE all relevance scores (X/10) from the output. They should not appear in the CV.")
+            elif "placeholder" in issue.lower():
+                corrections.append("• REMOVE all placeholder text [like this], TBD, N/A. Use only complete information.")
+            elif "missing" in issue.lower() and "section" in issue.lower():
+                corrections.append(f"• INCLUDE the missing section: {issue}")
+            elif "contact" in issue.lower():
+                corrections.append("• ENSURE contact information (email, phone) is included after the name")
+            elif "date" in issue.lower():
+                corrections.append(f"• FIX date mismatch: {issue}. Use ONLY dates from provided user info.")
+            elif "project" in issue.lower():
+                corrections.append("• INCLUDE ALL 3 projects. Each needs 2-3 bullet points.")
+            else:
+                corrections.append(f"• {issue}")
+
+        corrections.append("")
+        corrections.append("Regenerate the CV fixing these specific issues.")
+
+        return "\n".join(corrections)
 
     def generate_cv(
         self, job: JobPosting, matched_projects: Dict[str, Any]
@@ -123,17 +156,57 @@ Skills: {', '.join(self.user_info.get('skills', []))}
         for key, value in variables.items():
             prompt = prompt.replace(f"{{{{{key}}}}}", str(value))
 
-        # Generate CV
+        # Generate CV with validation and retries
         self.logger.info("Generating CV content with Llama...")
 
-        cv_text = self.ollama.generate_text(
-            prompt,
-            temperature=0.5,  # Medium creativity
-            max_tokens=2000,
-        )
+        cv_text = None
+        validation_result = None
+        max_retries = 3
 
-        if not cv_text:
-            self.logger.error("Failed to generate CV")
+        for attempt in range(max_retries):
+            if attempt > 0:
+                self.logger.info(f"Retry attempt {attempt + 1}/{max_retries}")
+
+            # Generate CV
+            cv_text = self.ollama.generate_text(
+                prompt,
+                temperature=0.5 - (attempt * 0.1),  # Lower temperature on retries for more consistency
+                max_tokens=2000,
+            )
+
+            if not cv_text:
+                self.logger.error(f"Failed to generate CV on attempt {attempt + 1}")
+                continue
+
+            # Validate the generated CV
+            validation_result = self.validator.validate(cv_text, self.user_info)
+
+            if validation_result["valid"]:
+                self.logger.info(f"✓ CV passed validation (AI score: {validation_result['ai_score']}/100)")
+                if validation_result["warnings"]:
+                    self.logger.warning(f"CV has {len(validation_result['warnings'])} warnings")
+                break
+            else:
+                self.logger.warning(f"❌ CV validation failed on attempt {attempt + 1}")
+                self.logger.warning(f"Issues: {', '.join(validation_result['critical_issues'][:3])}")
+
+                if attempt < max_retries - 1:
+                    # Add specific correction instructions to prompt for retry
+                    correction_instructions = self._build_correction_prompt(validation_result)
+                    prompt = prompt + "\n\n" + correction_instructions
+
+        # If all retries failed, save for manual review
+        if not validation_result or not validation_result["valid"]:
+            self.logger.error("CV generation failed after all retries")
+            if cv_text:
+                # Save failed CV for debugging
+                failed_path = self.output_dir / "failed_cvs" / f"FAILED_{job.company}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                with open(failed_path, "w", encoding="utf-8") as f:
+                    f.write("=== FAILED CV GENERATION ===\n\n")
+                    f.write(cv_text)
+                    f.write("\n\n=== VALIDATION REPORT ===\n\n")
+                    f.write(self.validator.format_validation_report(validation_result))
+                self.logger.error(f"Failed CV saved to: {failed_path}")
             return None
 
         # Save as .docx
@@ -236,7 +309,7 @@ Skills: {', '.join(self.user_info.get('skills', []))}
 
             self.logger.info(f"✓ CV saved: {cv_path}")
 
-            return (cv_text, str(cv_path))
+            return (cv_text, str(cv_path), validation_result)
 
         except Exception as e:
             self.logger.error(f"Error saving CV: {e}")
@@ -361,7 +434,7 @@ Skills: {', '.join(self.user_info.get('skills', []))}
             self.logger.error("CV generation failed")
             return None
 
-        cv_text, cv_path = cv_result
+        cv_text, cv_path, cv_validation = cv_result
 
         # Step 3: Generate cover letter
         cl_result = self.generate_cover_letter(job, matched_projects)
@@ -380,6 +453,7 @@ Skills: {', '.join(self.user_info.get('skills', []))}
             "cv": {
                 "text": cv_text,
                 "path": cv_path,
+                "validation": cv_validation,
             },
             "cover_letter": {
                 "text": cl_text,
