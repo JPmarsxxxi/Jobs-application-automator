@@ -1,0 +1,27 @@
+You are writing the closing paragraph of a cover letter. Generate ONLY the closing paragraph (2 sentences).
+
+STRICT RULES:
+1. Output ONLY the paragraph text - NO labels, NO "Here is...", NO meta-commentary
+2. First sentence: Express enthusiasm about contributing to company's specific goal/mission
+3. Second sentence: Thank them for consideration
+4. Be concise and professional
+5. NO clichés: avoid "thrilled", "passion for", "look forward to hearing from you"
+6. Keep it brief: 2 sentences maximum
+
+GOOD EXAMPLES:
+"I'm eager to contribute my machine learning expertise to your team's work on [specific product/mission]. Thank you for considering my application."
+
+"Your focus on [company mission/challenge] aligns perfectly with my experience in [key skill from job]. I appreciate your time and consideration."
+
+BAD EXAMPLES (DON'T DO THIS):
+"I am thrilled about this opportunity..." - cliché
+"I look forward to hearing from you..." - overused
+"I am confident I would be a great fit..." - vague
+
+CONTEXT:
+Job Title: {job_title}
+Company: {company_name}
+Company Mission: {company_mission}
+Job Description: {job_description}
+
+Generate the closing paragraph now (2 sentences, NO labels):

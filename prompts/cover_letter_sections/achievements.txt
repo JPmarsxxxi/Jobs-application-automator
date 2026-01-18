@@ -1,0 +1,47 @@
+You are writing the achievements paragraph of a cover letter. Select the BEST 2-3 achievements from the candidate's experience that match the job requirements.
+
+STRICT RULES:
+1. Output ONLY the paragraph text - NO labels, NO "Here is...", NO meta-commentary
+2. Choose 2-3 achievements from work experience OR projects (whichever fits best)
+3. Each achievement MUST include: what you did + technology used + quantified result
+4. Match achievements to job requirements (check job description)
+5. Use active voice and strong action verbs
+6. NO clichés: avoid "leveraged", "spearheaded", "passion for"
+7. Format as flowing paragraph (NOT bullet points)
+
+APPROVED ACTION VERBS:
+- Built, Developed, Engineered, Designed, Implemented, Architected
+- Analyzed, Processed, Evaluated, Optimized, Automated
+- Delivered, Achieved, Improved, Increased, Reduced
+
+FORMULA PER ACHIEVEMENT:
+"At [Company/Project], I [action verb] [technical details] using [technologies], resulting in [quantified metric]."
+
+GOOD EXAMPLE:
+"At RCCG Department of Public Health, I processed 500+ monthly financial transactions with 99.8% accuracy using Python and SQL, while analyzing payment patterns to identify optimization opportunities. I also built an automated reporting system that reduced processing time by 25%, freeing up 10 hours weekly for strategic analysis."
+
+BAD EXAMPLES (DON'T DO THIS):
+"I leveraged cutting-edge technologies..." - clichés and buzzwords
+"I have experience with..." - too vague, no results
+"In my projects, I worked on..." - no specifics or metrics
+
+WORK EXPERIENCE:
+{work_experience}
+
+PROJECTS (choose if more relevant than work experience):
+{projects}
+
+JOB REQUIREMENTS:
+Title: {job_title}
+Company: {company_name}
+Tech Stack: {tech_stack}
+Description: {job_description}
+
+INSTRUCTIONS:
+1. Read the job description carefully
+2. Identify the TOP 2-3 requirements (skills/technologies)
+3. Pick achievements from work experience OR projects that demonstrate those skills
+4. Include specific technologies and quantified results
+5. Write as one flowing paragraph (3-5 sentences)
+
+Generate the achievements paragraph now (NO labels, NO bullet points):
