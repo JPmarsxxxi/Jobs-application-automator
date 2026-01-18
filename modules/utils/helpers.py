@@ -4,6 +4,7 @@ Helper utilities for the job application bot
 
 import re
 import time
+import random
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 from datetime import datetime
@@ -225,3 +226,26 @@ def estimate_reading_time(text: str, words_per_minute: int = 200) -> int:
     words = len(text.split())
     minutes = max(1, words // words_per_minute)
     return minutes
+
+
+def human_delay(min_seconds: float = 1.0, max_seconds: float = 3.0):
+    """
+    Random delay to simulate human behavior
+    
+    Args:
+        min_seconds: Minimum delay in seconds
+        max_seconds: Maximum delay in seconds
+    """
+    delay = random.uniform(min_seconds, max_seconds)
+    time.sleep(delay)
+    return delay
+
+
+def human_scroll_delay():
+    """Delay after scrolling (human-like)"""
+    return human_delay(0.5, 1.5)
+
+
+def human_typing_delay():
+    """Delay between keystrokes (human-like)"""
+    return random.uniform(0.05, 0.15)
