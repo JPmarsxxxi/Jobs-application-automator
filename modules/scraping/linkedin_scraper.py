@@ -1,21 +1,31 @@
 """
 LinkedIn Job Scraper
 
-Scrapes job postings from LinkedIn Jobs
+Scrapes job postings from LinkedIn Jobs with vision-based fallback for company extraction
 """
 
 from typing import List, Optional
 import re
 import time
 from urllib.parse import urlencode
+from pathlib import Path
+import base64
 
 from modules.scraping.base_scraper import BaseScraper
 from modules.scraping.job_models import JobPosting, ScraperConfig
 from modules.utils.helpers import generate_job_id, extract_keywords, clean_text
+from modules.generation.ollama_client import get_ollama_client
 
 
 class LinkedInScraper(BaseScraper):
-    """Scraper for LinkedIn Jobs"""
+    """Scraper for LinkedIn Jobs with vision-based fallback"""
+
+    def __init__(self, config: ScraperConfig):
+        """Initialize LinkedIn scraper with vision model support"""
+        super().__init__(config)
+        self.ollama = get_ollama_client()
+        self.screenshot_dir = Path("workspace/screenshots")
+        self.screenshot_dir.mkdir(parents=True, exist_ok=True)
 
     @property
     def platform_name(self) -> str:
@@ -117,11 +127,21 @@ class LinkedInScraper(BaseScraper):
                     company = card.query_selector("h4.base-search-card__subtitle")
                     location = card.query_selector("span.job-search-card__location")
 
+                    # Extract company name with vision fallback
+                    company_name = "Unknown"
+                    if company:
+                        company_name = company.inner_text().strip()
+
+                    # If text extraction failed, use vision model
+                    if not company_name or company_name == "Unknown" or len(company_name) < 2:
+                        self.logger.info(f"Text extraction failed for company, trying vision...")
+                        company_name = self._extract_company_with_vision(card, job_id)
+
                     jobs_data.append({
                         "job_id": job_id,
                         "job_url": job_url,
                         "title": title.inner_text().strip() if title else "Unknown",
-                        "company": company.inner_text().strip() if company else "Unknown",
+                        "company": company_name,
                         "location": location.inner_text().strip() if location else "Unknown",
                         "card_element": card,
                     })
@@ -135,6 +155,71 @@ class LinkedInScraper(BaseScraper):
         except Exception as e:
             self.logger.error(f"Error extracting job cards: {e}")
             return []
+
+    def _extract_company_with_vision(self, card_element, job_id: str) -> str:
+        """
+        Extract company name from job card using vision model.
+
+        Args:
+            card_element: Playwright element handle for job card
+            job_id: Job ID for screenshot naming
+
+        Returns:
+            Company name or "Unknown" if extraction fails
+        """
+        try:
+            # Take screenshot of the job card
+            screenshot_path = self.screenshot_dir / f"job_card_{job_id}.png"
+            card_element.screenshot(path=str(screenshot_path))
+
+            self.logger.debug(f"Screenshot saved: {screenshot_path}")
+
+            # Read screenshot as base64
+            with open(screenshot_path, "rb") as image_file:
+                image_data = base64.b64encode(image_file.read()).decode('utf-8')
+
+            # Prompt for vision model
+            prompt = """Look at this LinkedIn job posting card. Extract ONLY the company name.
+
+Rules:
+- Return ONLY the company name, nothing else
+- No extra text, no explanations
+- If you can't find it, return "Unknown"
+
+Company name:"""
+
+            # Use vision model to extract company name
+            company_name = self.ollama.analyze_image(
+                image_data=image_data,
+                prompt=prompt,
+                max_tokens=50
+            )
+
+            if company_name:
+                # Clean up the response
+                company_name = company_name.strip()
+                # Remove common prefixes from LLM response
+                company_name = company_name.replace("Company name:", "").strip()
+                company_name = company_name.replace("The company is", "").strip()
+                company_name = company_name.replace("is", "").strip()
+
+                # Validate it's not too long (company names shouldn't be > 100 chars)
+                if len(company_name) > 100:
+                    self.logger.warning(f"Vision extracted name too long: {company_name[:100]}...")
+                    return "Unknown"
+
+                # Validate it's not empty after cleaning
+                if len(company_name) < 2:
+                    return "Unknown"
+
+                self.logger.info(f"✓ Vision extracted company: {company_name}")
+                return company_name
+
+            return "Unknown"
+
+        except Exception as e:
+            self.logger.warning(f"Vision extraction failed: {e}")
+            return "Unknown"
 
     def extract_job_details(self, job_card_data: dict) -> Optional[JobPosting]:
         """Extract detailed job information"""
