@@ -331,17 +331,19 @@ Experience: {self.user_info.get('experience_summary', 'Recent graduate')}
             section.right_margin = Inches(0.7)
 
         # Name (16pt, bold, centered)
-        name_para = doc.add_paragraph(content['NAME'])
+        name_para = doc.add_paragraph(content.get('NAME', 'Unknown'))
         name_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        name_run = name_para.runs[0]
-        name_run.font.size = Pt(16)
-        name_run.bold = True
+        if name_para.runs:
+            name_run = name_para.runs[0]
+            name_run.font.size = Pt(16)
+            name_run.bold = True
 
         # Contact info (10pt, centered)
-        contact = f"{content['EMAIL']} | {content['PHONE']} | {content['LINKEDIN']} | {content['LOCATION']}"
+        contact = f"{content.get('EMAIL', '')} | {content.get('PHONE', '')} | {content.get('LINKEDIN', '')} | {content.get('LOCATION', '')}"
         contact_para = doc.add_paragraph(contact)
         contact_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        contact_para.runs[0].font.size = Pt(10)
+        if contact_para.runs:
+            contact_para.runs[0].font.size = Pt(10)
 
         # Professional Summary
         self._add_section(doc, "PROFESSIONAL SUMMARY", content['PROFESSIONAL_SUMMARY'])
@@ -350,25 +352,38 @@ Experience: {self.user_info.get('experience_summary', 'Recent graduate')}
         self._add_section(doc, "TECHNICAL SKILLS", content['SKILLS_CATEGORIZED'])
 
         # Key Projects
-        doc.add_paragraph("KEY PROJECTS").runs[0].font.size = Pt(12)
-        doc.paragraphs[-1].runs[0].bold = True
+        header_para = doc.add_paragraph("KEY PROJECTS")
+        if header_para.runs:
+            header_para.runs[0].font.size = Pt(12)
+            header_para.runs[0].bold = True
 
-        for i in range(1, 4):
+        # Only iterate over projects that actually exist in content
+        num_projects = sum(1 for i in range(1, 4) if f'PROJECT_{i}_TITLE' in content and content[f'PROJECT_{i}_TITLE'])
+
+        for i in range(1, num_projects + 1):
             # Project title
-            title_para = doc.add_paragraph(content[f'PROJECT_{i}_TITLE'])
-            title_para.runs[0].font.size = Pt(11)
-            title_para.runs[0].bold = True
+            title = content.get(f'PROJECT_{i}_TITLE', '')
+            if not title:
+                continue
+
+            title_para = doc.add_paragraph(title)
+            if title_para.runs:
+                title_para.runs[0].font.size = Pt(11)
+                title_para.runs[0].bold = True
 
             # Technologies
-            tech_para = doc.add_paragraph(f"Technologies: {content[f'PROJECT_{i}_TECH']}")
-            tech_para.runs[0].font.size = Pt(11)
+            tech = content.get(f'PROJECT_{i}_TECH', '')
+            tech_para = doc.add_paragraph(f"Technologies: {tech}")
+            if tech_para.runs:
+                tech_para.runs[0].font.size = Pt(11)
 
             # Bullets
-            bullets = content[f'PROJECT_{i}_BULLETS']
+            bullets = content.get(f'PROJECT_{i}_BULLETS', '')
             for bullet_line in bullets.split('\n'):
                 if bullet_line.strip():
                     bullet_para = doc.add_paragraph(bullet_line.strip())
-                    bullet_para.runs[0].font.size = Pt(11)
+                    if bullet_para.runs:
+                        bullet_para.runs[0].font.size = Pt(11)
 
             # Spacing
             doc.add_paragraph()
@@ -377,14 +392,18 @@ Experience: {self.user_info.get('experience_summary', 'Recent graduate')}
         self._add_section(doc, "EDUCATION", content['EDUCATION'])
 
         # Certifications (if any)
-        if content['CERTIFICATIONS']:
+        if content.get('CERTIFICATIONS'):
             cert_lines = content['CERTIFICATIONS'].split('\n')
-            doc.add_paragraph(cert_lines[0]).runs[0].font.size = Pt(12)  # Header
-            doc.paragraphs[-1].runs[0].bold = True
+            if cert_lines and cert_lines[0]:
+                cert_header = doc.add_paragraph(cert_lines[0])
+                if cert_header.runs:
+                    cert_header.runs[0].font.size = Pt(12)
+                    cert_header.runs[0].bold = True
             for cert_line in cert_lines[1:]:
                 if cert_line.strip():
                     cert_para = doc.add_paragraph(cert_line.strip())
-                    cert_para.runs[0].font.size = Pt(11)
+                    if cert_para.runs:
+                        cert_para.runs[0].font.size = Pt(11)
 
         return doc
 
@@ -392,14 +411,16 @@ Experience: {self.user_info.get('experience_summary', 'Recent graduate')}
         """Add a section with header and content"""
         # Header (12pt, bold)
         header_para = doc.add_paragraph(header)
-        header_para.runs[0].font.size = Pt(12)
-        header_para.runs[0].bold = True
+        if header_para.runs:
+            header_para.runs[0].font.size = Pt(12)
+            header_para.runs[0].bold = True
 
         # Content (11pt)
         for line in content.split('\n'):
             if line.strip():
                 para = doc.add_paragraph(line.strip())
-                para.runs[0].font.size = Pt(11)
+                if para.runs:
+                    para.runs[0].font.size = Pt(11)
 
         # Spacing
         doc.add_paragraph()
