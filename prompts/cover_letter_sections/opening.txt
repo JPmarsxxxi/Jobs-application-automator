@@ -1,0 +1,33 @@
+You are writing the opening paragraph of a cover letter. Generate ONLY the opening paragraph (2-3 sentences).
+
+STRICT RULES:
+1. Output ONLY the paragraph text - NO labels, NO "Here is...", NO meta-commentary
+2. Start with why you're interested in THIS specific company (use research below)
+3. Reference something specific: their product, mission, recent news, or tech stack
+4. End with why THIS role excites you
+5. Be genuine and specific - avoid generic praise
+6. NO clichés: avoid "thrilled", "passion for", "cutting-edge", "world-class"
+7. Keep it concise: 2-3 sentences maximum
+
+GOOD EXAMPLES:
+"I discovered your work on [specific product] through [source], and was impressed by [specific achievement]. When I saw you're hiring for {job_title}, I knew my experience in [relevant skill] would be a strong fit."
+
+"Having followed your team's recent [specific news/achievement], I'm particularly excited about your approach to [specific technology/problem]. Your {job_title} role aligns perfectly with my background in [relevant experience]."
+
+BAD EXAMPLES (DON'T DO THIS):
+"I am thrilled to apply..." - too generic, cliché
+"Your cutting-edge work..." - buzzwords
+"I have a passion for..." - overused phrase
+
+COMPANY RESEARCH:
+Company: {company_name}
+Mission: {company_mission}
+Products: {company_products}
+Recent News: {company_news}
+Tech Stack: {tech_stack}
+
+JOB:
+Title: {job_title}
+Description: {job_description}
+
+Generate the opening paragraph now (2-3 sentences, NO labels):

@@ -15,11 +15,13 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from modules.generation.ollama_client import get_ollama_client
 from modules.generation.project_matcher import get_project_matcher
 from modules.generation.cv_template_builder import CVTemplateBuilder
+from modules.generation.cover_letter_template_builder import CoverLetterTemplateBuilder
 from modules.scraping.job_models import JobPosting
 from modules.core.logger import get_logger
 from modules.utils.helpers import sanitize_filename
 from modules.utils.cv_validator import CVValidator
 from modules.utils.cv_fixer import get_cv_fixer
+from modules.utils.company_researcher import get_company_researcher
 
 
 class MaterialGenerator:
@@ -44,10 +46,12 @@ class MaterialGenerator:
         self.project_matcher = get_project_matcher()
         self.validator = CVValidator()
         self.fixer = get_cv_fixer()
+        self.company_researcher = get_company_researcher()
 
-        # Initialize CV template builder (new modular approach)
+        # Initialize template builders (modular approach)
         prompts_dir = Path("prompts")
         self.cv_builder = CVTemplateBuilder(self.ollama, user_info, prompts_dir)
+        self.cl_builder = CoverLetterTemplateBuilder(self.ollama, user_info, prompts_dir)
 
         # Create output directories
         (self.output_dir / "cvs").mkdir(parents=True, exist_ok=True)
@@ -258,7 +262,7 @@ IMPORTANT: Any field marked [OMIT - not provided] should be completely excluded 
         self, job: JobPosting, matched_projects: Dict[str, Any]
     ) -> Optional[Tuple[str, str]]:
         """
-        Generate cover letter
+        Generate cover letter using template approach with company research
 
         Args:
             job: Job posting
@@ -269,83 +273,52 @@ IMPORTANT: Any field marked [OMIT - not provided] should be completely excluded 
         """
         self.logger.info(f"Generating cover letter for {job.company} - {job.title}")
 
-        # Read prompt template
-        prompt_path = Path("prompts/cover_letter_generation.txt")
-        if not prompt_path.exists():
-            self.logger.error("Cover letter generation prompt not found")
-            return None
+        # Step 1: Research company (web search)
+        company_research = self.company_researcher.research_company(job.company, job.title)
 
-        with open(prompt_path, "r", encoding="utf-8") as f:
-            prompt_template = f.read()
+        # Step 2: Format matched projects for cover letter builder
+        project_scores = matched_projects.get("project_scores", [])[:3]
+        formatted_projects = []
 
-        # Get top project
-        top_project_id = matched_projects.get("top_projects", [])[0] if matched_projects.get("top_projects") else None
-        top_project_text = ""
-        if top_project_id:
-            top_project_text = self.project_matcher.get_project_details(top_project_id)
+        for score_data in project_scores:
+            project_id = score_data.get("project_id")
+            details = self.project_matcher.get_project_details(project_id)
+            if details:
+                project_data = self._parse_project_details(details)
+                if project_data.get('title'):
+                    project_data["score"] = score_data.get("score", 0)
+                    project_data["relevance_context"] = score_data.get("reasoning", "")
+                    formatted_projects.append(project_data)
 
-        # Prepare prompt variables
-        variables = {
-            "company": job.company,
-            "title": job.title,
-            "location": job.location,
-            "job_description": job.description[:1500],
-            "user_info": self.format_user_info(),
-            "top_project": top_project_text,
-        }
+        if len(formatted_projects) < 1:
+            self.logger.warning("No valid projects for cover letter, using fallback")
 
-        # Substitute variables
-        prompt = prompt_template
-        for key, value in variables.items():
-            prompt = prompt.replace(f"{{{{{key}}}}}", str(value))
-
-        # Generate cover letter
-        self.logger.info("Generating cover letter content with Llama...")
-
-        cover_letter_text = self.ollama.generate_text(
-            prompt,
-            temperature=0.6,  # Slightly more creative
-            max_tokens=800,
-        )
-
-        if not cover_letter_text:
-            self.logger.error("Failed to generate cover letter")
-            return None
-
-        # Save as .docx
+        # Step 3: Generate cover letter using template builder
         try:
+            cl_doc = self.cl_builder.generate_cover_letter(job, company_research, formatted_projects)
+
+            if not cl_doc:
+                self.logger.error("Cover letter generation failed - template builder returned None")
+                return None
+
+            # Save as .docx
             safe_company = sanitize_filename(job.company)
-            filename = f"{safe_company}_Cover_Letter"
+            filename = f"{self.user_info['name'].replace(' ', '_')}_CoverLetter_{safe_company}"
             cl_path = self.output_dir / "cover_letters" / f"{filename}.docx"
 
-            # Create Word document
-            doc = Document()
-
-            # Set margins
-            sections = doc.sections
-            for section in sections:
-                section.top_margin = Inches(1)
-                section.bottom_margin = Inches(1)
-                section.left_margin = Inches(1)
-                section.right_margin = Inches(1)
-
-            # Add cover letter content
-            for line in cover_letter_text.split("\n"):
-                paragraph = doc.add_paragraph(line)
-                # Use standard font
-                for run in paragraph.runs:
-                    run.font.name = "Calibri"
-                    run.font.size = Pt(11)
-
-            # Save document
-            doc.save(cl_path)
+            cl_doc.save(cl_path)
 
             self.logger.info(f"✓ Cover letter saved: {cl_path}")
 
-            return (cover_letter_text, str(cl_path))
+            # Extract text from document for return value
+            cl_text = "\n".join([para.text for para in cl_doc.paragraphs if para.text.strip()])
+
+            return (cl_text, str(cl_path))
 
         except Exception as e:
-            self.logger.error(f"Error saving cover letter: {e}")
+            self.logger.error(f"Error generating cover letter: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             return None
 
     def generate_materials(
