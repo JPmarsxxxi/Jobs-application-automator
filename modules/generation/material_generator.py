@@ -210,8 +210,16 @@ IMPORTANT: Any field marked [OMIT - not provided] should be completely excluded 
             return None
 
     def _parse_project_details(self, details_text: str) -> Dict[str, Any]:
-        """Parse project details text into structured format"""
-        lines = details_text.strip().split('\n')
+        """
+        Parse project details text into structured format.
+
+        Expected format from get_project_details():
+        Line 1: Project Name
+        Line 2: Project Summary/Description
+        Line 3: Technologies: tech1, tech2, tech3
+        Line 4: Key Results: metrics
+        """
+        lines = [line.strip() for line in details_text.strip().split('\n') if line.strip()]
 
         project = {
             'title': '',
@@ -219,28 +227,25 @@ IMPORTANT: Any field marked [OMIT - not provided] should be completely excluded 
             'technologies': []
         }
 
-        current_section = None
+        # Line-based parsing matching actual get_project_details() format
+        if len(lines) >= 1:
+            # Line 1: Project title (no prefix)
+            project['title'] = lines[0]
 
-        for line in lines:
-            line = line.strip()
+        if len(lines) >= 2:
+            # Line 2: Project description/summary (no prefix)
+            project['description'] = lines[1]
 
-            if not line:
-                continue
-
-            if line.startswith('Title:'):
-                project['title'] = line.replace('Title:', '').strip()
-            elif line.startswith('Description:'):
-                project['description'] = line.replace('Description:', '').strip()
-                current_section = 'description'
-            elif line.startswith('Technologies:'):
+        # Lines 3+: Look for Technologies and Key Results
+        for line in lines[2:]:
+            if line.startswith('Technologies:'):
                 tech_line = line.replace('Technologies:', '').strip()
                 project['technologies'] = [t.strip() for t in tech_line.split(',') if t.strip()]
-                current_section = 'technologies'
-            elif line.startswith('Key Features:') or line.startswith('Results:'):
-                current_section = None
-            elif current_section == 'description' and not line.startswith('-'):
-                # Continue description
-                project['description'] += ' ' + line
+            elif line.startswith('Key Results:'):
+                # Append key results to description for context
+                key_results = line.replace('Key Results:', '').strip()
+                if key_results:
+                    project['description'] += f" Key metrics: {key_results}"
 
         # Log parsed project for debugging
         self.logger.debug(f"Parsed project: title='{project['title']}', "
