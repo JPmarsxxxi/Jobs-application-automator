@@ -164,6 +164,7 @@ class JobHuntOrchestrator:
                 ],
                 cv_content_preview=materials["cv"]["text"],
                 ats_score=8.5,  # Placeholder for now
+                validation_result=materials["cv"].get("validation"),
             )
 
             # Log cover letter to QC log
