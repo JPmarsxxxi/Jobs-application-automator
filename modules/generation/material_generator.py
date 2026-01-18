@@ -152,6 +152,18 @@ IMPORTANT: Any field marked [OMIT - not provided] should be completely excluded 
             if details:
                 # Parse project details (extract title, description, technologies)
                 project_data = self._parse_project_details(details)
+
+                # Validate that we got all required fields
+                if not project_data.get('title'):
+                    self.logger.warning(f"Project {project_id} has no title, skipping")
+                    continue
+                if not project_data.get('technologies'):
+                    self.logger.warning(f"Project {project_id} has no technologies, skipping")
+                    continue
+                if not project_data.get('description'):
+                    self.logger.warning(f"Project {project_id} has no description, skipping")
+                    continue
+
                 project_data["score"] = relevance_score
                 project_data["relevance_context"] = f"Relevance Score: {relevance_score}/10\nWhy relevant: {reasoning}"
                 formatted_projects.append(project_data)
@@ -229,6 +241,11 @@ IMPORTANT: Any field marked [OMIT - not provided] should be completely excluded 
             elif current_section == 'description' and not line.startswith('-'):
                 # Continue description
                 project['description'] += ' ' + line
+
+        # Log parsed project for debugging
+        self.logger.debug(f"Parsed project: title='{project['title']}', "
+                         f"technologies={len(project['technologies'])}, "
+                         f"description_len={len(project['description'])}")
 
         return project
 
