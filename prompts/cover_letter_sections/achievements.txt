@@ -8,6 +8,9 @@ STRICT RULES:
 5. Use active voice and strong action verbs
 6. NO clichés: avoid "leveraged", "spearheaded", "passion for"
 7. Format as flowing paragraph (NOT bullet points)
+8. CRITICAL: ONLY use companies/projects listed in WORK EXPERIENCE and PROJECTS sections below
+9. CRITICAL: NEVER invent companies, positions, or experiences not listed below
+10. CRITICAL: If no relevant experience exists, be honest - reference academic projects or transferable skills
 
 APPROVED ACTION VERBS:
 - Built, Developed, Engineered, Designed, Implemented, Architected

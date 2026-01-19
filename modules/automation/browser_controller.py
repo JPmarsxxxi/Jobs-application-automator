@@ -12,6 +12,7 @@ from playwright.sync_api import Page
 from modules.automation.hybrid_form_analyzer import get_hybrid_analyzer
 from modules.automation.form_filler import get_form_filler
 from modules.automation.file_uploader import get_file_uploader
+from modules.automation.adaptive_scraper import get_adaptive_scraper
 from modules.utils.helpers import human_delay
 
 
@@ -27,6 +28,7 @@ class BrowserController:
         self.analyzer = get_hybrid_analyzer()
         self.filler = get_form_filler(user_info, page)
         self.uploader = get_file_uploader(page)
+        self.adaptive = get_adaptive_scraper(page, "application")
 
         # Screenshot directory
         self.screenshots_dir = Path(screenshots_dir)
@@ -227,104 +229,186 @@ class BrowserController:
         dry_run: bool,
         result: Dict
     ) -> Dict:
-        """Handle external career page application"""
-
-        self.logger.warning("External applications not fully implemented yet")
-        result["status"] = "not_implemented"
-        result["error"] = "External application handling coming in future update"
-        return result
-
-    def _detect_application_type(self) -> str:
-        """Detect what type of application this is"""
+        """
+        Handle external career page application using OCR/vision.
+        Works on ANY career site - Workday, Greenhouse, Lever, etc.
+        """
+        self.logger.info("Handling external application using OCR/vision")
 
         try:
-            # Check for LinkedIn Easy Apply button
-            easy_apply_selectors = [
-                "button.jobs-apply-button",
-                "button[aria-label*='Easy Apply']",
-                "button:has-text('Easy Apply')",
+            # Take screenshot of current page
+            screenshot_path = self._take_screenshot("02_external_page")
+            result["screenshots"].append(screenshot_path)
+
+            # Analyze form using OCR/vision
+            self.logger.info("Analyzing external application form...")
+            form_analysis = self.analyzer.analyze_form(screenshot_path)
+
+            fields = form_analysis.get("fields", [])
+            self.logger.info(f"Found {len(fields)} form fields via OCR/vision")
+
+            if dry_run:
+                self.logger.info("[DRY RUN] Would fill external application form")
+                result["status"] = "dry_run_success"
+                result["success"] = True
+                return result
+
+            # Fill each field intelligently
+            filled_count = 0
+            for field in fields:
+                field_type = field.get("type", "unknown")
+                field_label = field.get("label", "")
+
+                self.logger.debug(f"Processing field: {field_label} ({field_type})")
+
+                # Use form filler to fill the field
+                if self.filler.fill_field_intelligent(field):
+                    filled_count += 1
+
+            self.logger.info(f"✓ Filled {filled_count}/{len(fields)} fields")
+
+            # Upload files (CV/cover letter)
+            if cv_path:
+                cv_uploaded = self.uploader.upload_cv(cv_path)
+                if not cv_uploaded:
+                    self.logger.warning("CV upload failed")
+
+            if cover_letter_path:
+                cl_uploaded = self.uploader.upload_cover_letter(cover_letter_path)
+                if not cl_uploaded:
+                    self.logger.warning("Cover letter upload failed")
+
+            # Click Submit button
+            screenshot_path = self._take_screenshot("03_before_submit")
+            result["screenshots"].append(screenshot_path)
+
+            if self._click_submit_button():
+                human_delay(2.0, 4.0)
+                screenshot_path = self._take_screenshot("04_after_submit")
+                result["screenshots"].append(screenshot_path)
+
+                result["status"] = "submitted"
+                result["success"] = True
+                self.logger.info("✓ External application submitted successfully")
+            else:
+                result["error"] = "Could not find submit button"
+                result["status"] = "failed"
+
+            return result
+
+        except Exception as e:
+            self.logger.error(f"External application failed: {e}")
+            result["error"] = str(e)
+            result["status"] = "error"
+            return result
+
+    def _detect_application_type(self) -> str:
+        """
+        Detect what type of application this is using vision/OCR.
+        No hardcoded selectors - works on ANY site!
+        """
+        try:
+            # Take screenshot of current page
+            screenshot_path = self._take_screenshot("detect_app_type")
+
+            # Use OCR to find button text
+            ocr_results = self.analyzer.ocr.extract_text_with_boxes(screenshot_path) if self.analyzer.use_ocr else []
+
+            # Look for common application button keywords
+            easy_apply_keywords = ["easy apply", "apply now", "apply", "submit application"]
+            external_keywords = ["apply on company site", "apply on website", "visit website"]
+
+            found_text_lower = " ".join([r['text'].lower() for r in ocr_results])
+
+            # Check for Easy Apply (LinkedIn style)
+            if any(keyword in found_text_lower for keyword in easy_apply_keywords):
+                self.logger.info(f"✓ Detected Easy Apply button via OCR")
+                return "linkedin_easy_apply"
+
+            # Check for external redirect
+            if any(keyword in found_text_lower for keyword in external_keywords):
+                self.logger.info(f"✓ Detected external application redirect")
+                return "external"
+
+            # Fallback: check URL
+            url = self.page.url
+            if "linkedin.com" in url:
+                return "linkedin_easy_apply"  # Assume Easy Apply if on LinkedIn
+            else:
+                return "external"
+
+        except Exception as e:
+            self.logger.error(f"Error detecting application type: {e}")
+            return "unknown"
+
+    def _click_button_by_text(self, button_keywords: List[str], button_name: str = "button") -> bool:
+        """
+        Universal button clicker using OCR/vision - works on ANY site!
+
+        Args:
+            button_keywords: List of possible button text (e.g., ["Easy Apply", "Apply Now"])
+            button_name: Name for logging
+
+        Returns:
+            True if clicked successfully
+        """
+        try:
+            # Take screenshot
+            screenshot_path = self._take_screenshot(f"find_{button_name}")
+
+            # Use OCR to find button text
+            if self.analyzer.use_ocr:
+                ocr_results = self.analyzer.ocr.extract_text_with_boxes(screenshot_path)
+
+                # Find button coordinates
+                for keyword in button_keywords:
+                    for item in ocr_results:
+                        if keyword.lower() in item['text'].lower():
+                            # Found it! Click at center of bounding box
+                            click_x = item['x'] + item['width'] / 2
+                            click_y = item['y'] + item['height'] / 2
+
+                            self.logger.info(f"✓ Found '{item['text']}' button via OCR at ({click_x}, {click_y})")
+                            self.page.mouse.click(click_x, click_y)
+                            human_delay(1.0, 2.0)
+                            return True
+
+            # Fallback: try hardcoded selectors
+            selectors = [
+                f"button:has-text('{keyword}')" for keyword in button_keywords
+            ] + [
+                f"button[aria-label*='{keyword}']" for keyword in button_keywords
             ]
 
-            for selector in easy_apply_selectors:
-                if self.page.locator(selector).first.is_visible():
-                    return "linkedin_easy_apply"
+            for selector in selectors:
+                try:
+                    button = self.page.locator(selector).first
+                    if button.is_visible():
+                        button.click()
+                        self.logger.info(f"✓ Clicked {button_name} via selector")
+                        human_delay(1.0, 2.0)
+                        return True
+                except:
+                    continue
 
-        except:
-            pass
+            self.logger.warning(f"Could not find {button_name}")
+            return False
 
-        # Check if we're on an external site
-        url = self.page.url
-        if "linkedin.com" not in url:
-            return "external"
-
-        return "unknown"
+        except Exception as e:
+            self.logger.error(f"Error clicking {button_name}: {e}")
+            return False
 
     def _click_easy_apply_button(self) -> bool:
-        """Click the Easy Apply button"""
-
-        selectors = [
-            "button.jobs-apply-button",
-            "button[aria-label*='Easy Apply']",
-            "button:has-text('Easy Apply')",
-        ]
-
-        for selector in selectors:
-            try:
-                button = self.page.locator(selector).first
-                if button.is_visible():
-                    button.click()
-                    self.logger.info("✓ Clicked Easy Apply button")
-                    return True
-            except:
-                continue
-
-        return False
+        """Click the Easy Apply button using OCR/vision"""
+        return self._click_button_by_text(["Easy Apply", "Apply Now", "Apply"], "Easy Apply")
 
     def _click_next_button(self) -> bool:
-        """Click Next/Continue button"""
-
-        selectors = [
-            "button[aria-label*='Continue']",
-            "button[aria-label*='Next']",
-            "button:has-text('Next')",
-            "button:has-text('Continue')",
-            "button:has-text('Proceed')",
-        ]
-
-        for selector in selectors:
-            try:
-                button = self.page.locator(selector).first
-                if button.is_visible():
-                    button.click()
-                    self.logger.info("✓ Clicked Next button")
-                    return True
-            except:
-                continue
-
-        return False
+        """Click Next/Continue button using OCR/vision"""
+        return self._click_button_by_text(["Next", "Continue", "Proceed", "Review"], "Next")
 
     def _click_submit_button(self) -> bool:
-        """Click final Submit button"""
-
-        selectors = [
-            "button[aria-label*='Submit application']",
-            "button[aria-label*='Submit']",
-            "button:has-text('Submit application')",
-            "button:has-text('Submit')",
-            "button:has-text('Send application')",
-        ]
-
-        for selector in selectors:
-            try:
-                button = self.page.locator(selector).first
-                if button.is_visible():
-                    button.click()
-                    self.logger.info("✓ Clicked Submit button")
-                    return True
-            except:
-                continue
-
-        return False
+        """Click final Submit button using OCR/vision"""
+        return self._click_button_by_text(["Submit application", "Submit", "Send application", "Apply"], "Submit")
 
     def _take_screenshot(self, name: str) -> str:
         """Take a screenshot and save it"""

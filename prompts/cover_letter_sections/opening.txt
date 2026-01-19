@@ -8,6 +8,9 @@ STRICT RULES:
 5. Be genuine and specific - avoid generic praise
 6. NO clichés: avoid "thrilled", "passion for", "cutting-edge", "world-class"
 7. Keep it concise: 2-3 sentences maximum
+8. CRITICAL: NEVER claim work experience or positions you haven't held
+9. CRITICAL: If company research is "N/A", use generic interest statement - DO NOT INVENT INFORMATION
+10. CRITICAL: Only reference YOUR OWN projects/experience, not made-up companies
 
 GOOD EXAMPLES:
 "I discovered your work on [specific product] through [source], and was impressed by [specific achievement]. When I saw you're hiring for {job_title}, I knew my experience in [relevant skill] would be a strong fit."
