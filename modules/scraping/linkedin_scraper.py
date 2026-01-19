@@ -116,6 +116,87 @@ class LinkedInScraper(BaseScraper):
         
         human_delay(0.2, 0.5)  # Pause after typing
 
+    def _dismiss_linkedin_banners(self):
+        """
+        Dismiss any LinkedIn banners/modals that might interfere with interactions
+        """
+        banner_selectors = [
+            'button[aria-label="Dismiss"]',
+            'button[data-control-name*="dismiss"]',
+            'button.modal__dismiss',
+            'button[data-test-modal-close-btn]',
+            'button.artdeco-modal__dismiss',
+            'button[aria-label="Close"]',
+            'button.msg-overlay-bubble-header__controls button',
+            'button[data-tracking-control-name="cookie_consent"]',
+            'button[action-type="DENY"]',
+        ]
+
+        for selector in banner_selectors:
+            try:
+                banner = self.page.query_selector(selector)
+                if banner and banner.is_visible():
+                    banner.click()
+                    self.logger.debug(f"Dismissed banner with selector: {selector}")
+                    human_delay(0.5, 1.0)
+            except:
+                continue
+
+    def _parse_linkedin_date(self, date_text: str):
+        """
+        Parse LinkedIn relative dates like "2 days ago", "1 week ago" to datetime
+
+        Args:
+            date_text: LinkedIn date string
+
+        Returns:
+            datetime object or None if parsing fails
+        """
+        from datetime import datetime, timedelta
+
+        try:
+            date_text = date_text.lower().strip()
+            now = datetime.now()
+
+            # Today/just now
+            if 'just now' in date_text or 'today' in date_text:
+                return now
+
+            # Parse "X days ago"
+            if 'day' in date_text:
+                match = re.search(r'(\d+)\s*day', date_text)
+                if match:
+                    days = int(match.group(1))
+                    return now - timedelta(days=days)
+
+            # Parse "X weeks ago"
+            if 'week' in date_text:
+                match = re.search(r'(\d+)\s*week', date_text)
+                if match:
+                    weeks = int(match.group(1))
+                    return now - timedelta(weeks=weeks)
+
+            # Parse "X months ago"
+            if 'month' in date_text:
+                match = re.search(r'(\d+)\s*month', date_text)
+                if match:
+                    months = int(match.group(1))
+                    return now - timedelta(days=months*30)  # Approximate
+
+            # Parse "X hours ago"
+            if 'hour' in date_text:
+                match = re.search(r'(\d+)\s*hour', date_text)
+                if match:
+                    hours = int(match.group(1))
+                    return now - timedelta(hours=hours)
+
+            # Default to now if can't parse
+            return now
+
+        except Exception as e:
+            self.logger.debug(f"Date parsing failed for '{date_text}': {e}")
+            return datetime.now()
+
     def login_if_required(self):
         """
         Login to LinkedIn if credentials are provided with human-like behavior
@@ -211,12 +292,13 @@ class LinkedInScraper(BaseScraper):
         try:
             # Wait for page to fully load
             human_delay(2.0, 4.0)
-            
-            # Scroll to load job listings (some LinkedIn pages lazy-load)
-            self._human_like_scroll(random.randint(200, 400))
-            human_delay(1.0, 2.0)
-            self._human_like_scroll(random.randint(400, 600))
-            human_delay(1.5, 3.0)
+
+            # Scroll multiple times to trigger lazy loading (LinkedIn loads jobs as you scroll)
+            # Multiple scroll operations with random intervals
+            for i in range(4):
+                scroll_amount = random.randint(300, 800)
+                self._human_like_scroll(scroll_amount)
+                human_delay(1.0, 2.0)  # Wait for content to load
             
             # Try multiple selectors for job listings container (LinkedIn changes frequently)
             container_selectors = [
@@ -500,60 +582,176 @@ Company name:"""
             self.logger.warning(f"Vision extraction failed: {e}")
             return "Unknown"
 
-    def extract_job_details(self, job_card_data: dict) -> Optional[JobPosting]:
-        """Extract detailed job information"""
+    def _extract_from_text_fallback(self, card_text: str) -> dict:
+        """
+        Extract company and location from raw card text as last resort
+
+        Args:
+            card_text: Raw text from job card
+
+        Returns:
+            dict with 'company' and 'location' keys
+        """
+        result = {'company': 'Unknown', 'location': 'Unknown'}
 
         try:
-            # Navigate to job details page
-            job_url = job_card_data["job_url"]
-            self.logger.debug(f"Opening job: {job_url}")
+            lines = [l.strip() for l in card_text.split('\n') if l.strip()]
 
-            self.page.goto(job_url, wait_until="domcontentloaded")
-            
-            # Human-like behavior: random delay and scroll
-            human_delay(2.0, 4.0)
-            self._human_like_scroll(random.randint(100, 300))
-            human_delay(1.0, 2.0)
+            # Usually first line is title, second is company, third is location
+            if len(lines) >= 2:
+                result['company'] = lines[1][:100]  # Limit length
 
-            # Check if job page loaded successfully
-            if "Page not found" in self.page.title():
-                self.logger.warning("Job page not found")
-                return None
+            # Look for location keywords
+            location_keywords = ['london', 'uk', 'united kingdom', 'remote', 'hybrid', 'cambridge', 'manchester', 'edinburgh']
+            for line in lines:
+                line_lower = line.lower()
+                if any(keyword in line_lower for keyword in location_keywords):
+                    result['location'] = line[:100]
+                    break
 
-            # Extract description
-            description = ""
+            self.logger.debug(f"Text fallback extracted: {result}")
+
+        except Exception as e:
+            self.logger.debug(f"Text fallback extraction failed: {e}")
+
+        return result
+
+    def _extract_description_with_retry(self, max_retries: int = 5) -> str:
+        """
+        Extract job description from detail panel with validation and retries
+
+        Args:
+            max_retries: Maximum number of retry attempts
+
+        Returns:
+            Job description text or fallback message
+        """
+        description_selectors = [
+            'div.description__text',
+            'div.show-more-less-html__markup',
+            'div[class*="description__text"]',
+            'div.jobs-description__content',
+            'div.jobs-box__html-content',
+            'section[class*="description"]',
+            'div[data-test-id*="description"]',
+            'div.jobs-description',
+            'article.jobs-description__container',
+        ]
+
+        for attempt in range(max_retries):
             try:
-                # Try main description container
-                desc_element = self.page.query_selector("div.show-more-less-html__markup")
-                if desc_element:
-                    description = clean_text(desc_element.inner_text())
-                else:
-                    # Try alternative selector
-                    desc_element = self.page.query_selector("div.description__text")
-                    if desc_element:
-                        description = clean_text(desc_element.inner_text())
+                # Try each selector
+                for selector in description_selectors:
+                    try:
+                        desc_element = self.page.query_selector(selector)
+                        if desc_element:
+                            # Wait for element to be visible
+                            if desc_element.is_visible():
+                                description = clean_text(desc_element.inner_text())
+
+                                # Validate: description should be at least 50 characters
+                                if len(description.strip()) > 50:
+                                    self.logger.debug(f"Description extracted with selector: {selector}")
+                                    return description
+                    except Exception as e:
+                        self.logger.debug(f"Selector {selector} failed: {e}")
+                        continue
+
+                # If no valid description found, wait and retry
+                if attempt < max_retries - 1:
+                    self.logger.debug(f"Description validation failed, retry {attempt + 1}/{max_retries}")
+                    human_delay(0.3, 0.5)
 
             except Exception as e:
-                self.logger.warning(f"Could not extract description: {e}")
+                self.logger.debug(f"Description extraction attempt {attempt + 1} failed: {e}")
 
-            # Extract additional details
+        # Final fallback: try to get ANY text from the detail panel
+        try:
+            detail_panel = self.page.query_selector('div[class*="job"]')
+            if detail_panel:
+                text = clean_text(detail_panel.inner_text())
+                if len(text) > 50:
+                    self.logger.warning("Using fallback text extraction for description")
+                    return text
+        except:
+            pass
+
+        self.logger.warning("Could not extract job description")
+        return "Description not available"
+
+    def extract_job_details(self, job_card_data: dict) -> Optional[JobPosting]:
+        """
+        Extract detailed job information by expanding the job panel
+        (Panel-based approach - no page navigation)
+        """
+
+        try:
+            job_url = job_card_data["job_url"]
+            card_element = job_card_data["card_element"]
+
+            self.logger.debug(f"Expanding job panel for: {job_card_data['title']}")
+
+            # Dismiss any banners that might interfere with clicking
+            self._dismiss_linkedin_banners()
+
+            # Click the job card to expand the detail panel
+            try:
+                # Try clicking the card element
+                card_element.click(timeout=3000)
+                self.logger.debug("Clicked job card")
+            except Exception as e:
+                # Fallback: try JavaScript click
+                self.logger.debug(f"Regular click failed, trying JavaScript click: {e}")
+                try:
+                    card_element.evaluate("el => el.click()")
+                except:
+                    self.logger.warning("Could not click job card")
+                    return None
+
+            # Wait for detail panel to load
+            human_delay(1.5, 3.0)
+
+            # Extract description from expanded panel with validation and retries
+            description = self._extract_description_with_retry()
+
+            # Extract additional details from panel
             criteria = {}
             try:
-                criteria_items = self.page.query_selector_all("li.description__job-criteria-item")
-                for item in criteria_items:
-                    header = item.query_selector("h3")
-                    value = item.query_selector("span")
-                    if header and value:
-                        criteria[header.inner_text().strip()] = value.inner_text().strip()
+                # Try multiple selectors for job criteria
+                criteria_selectors = [
+                    "li.description__job-criteria-item",
+                    "li.jobs-description__list-item",
+                    "li[class*='job-criteria']",
+                ]
+
+                for selector in criteria_selectors:
+                    criteria_items = self.page.query_selector_all(selector)
+                    if criteria_items:
+                        for item in criteria_items:
+                            try:
+                                header = item.query_selector("h3")
+                                value = item.query_selector("span")
+                                if header and value:
+                                    criteria[header.inner_text().strip()] = value.inner_text().strip()
+                            except:
+                                continue
+                        break
             except Exception as e:
                 self.logger.debug(f"Could not extract criteria: {e}")
 
             # Check for Easy Apply
             easy_apply = False
             try:
-                easy_apply_button = self.page.query_selector("button.jobs-apply-button")
-                if easy_apply_button:
-                    easy_apply = True
+                easy_apply_selectors = [
+                    "button.jobs-apply-button",
+                    "button[aria-label*='Easy Apply']",
+                    "button[data-control-name*='easy_apply']",
+                ]
+                for selector in easy_apply_selectors:
+                    easy_apply_button = self.page.query_selector(selector)
+                    if easy_apply_button and easy_apply_button.is_visible():
+                        easy_apply = True
+                        break
             except:
                 pass
 
