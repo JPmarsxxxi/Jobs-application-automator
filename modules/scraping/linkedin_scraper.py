@@ -16,6 +16,7 @@ from modules.scraping.base_scraper import BaseScraper
 from modules.scraping.job_models import JobPosting, ScraperConfig
 from modules.utils.helpers import generate_job_id, extract_keywords, clean_text, human_delay, human_scroll_delay
 from modules.generation.ollama_client import get_ollama_client
+from modules.automation.adaptive_scraper import get_adaptive_scraper
 
 
 class LinkedInScraper(BaseScraper):
@@ -27,6 +28,9 @@ class LinkedInScraper(BaseScraper):
         self.ollama = get_ollama_client()
         self.screenshot_dir = Path("workspace/screenshots")
         self.screenshot_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize adaptive scraper (will be available after browser starts)
+        self.adaptive_scraper = None
 
     @property
     def platform_name(self) -> str:
@@ -290,6 +294,11 @@ class LinkedInScraper(BaseScraper):
         """Extract job cards from LinkedIn search results with human-like behavior"""
 
         try:
+            # Initialize adaptive scraper if not already done
+            if self.adaptive_scraper is None:
+                self.adaptive_scraper = get_adaptive_scraper(self.page, self.platform_name)
+                self.logger.info("✓ Adaptive scraper initialized with auto-detection")
+
             # Wait for page to fully load
             human_delay(2.0, 4.0)
 
@@ -439,57 +448,25 @@ class LinkedInScraper(BaseScraper):
 
                     job_id = job_id_match.group(1)
 
-                    # Extract basic details - try multiple selectors with inner_text fallback
-                    title_text = None
-                    for title_selector in title_selectors:
-                        try:
-                            title = card.query_selector(title_selector)
-                            if title:
-                                title_text = title.inner_text().strip()
-                                if title_text:
-                                    break
-                        except:
-                            continue
-                    
-                    # Fallback: get all text and try to extract title
-                    if not title_text:
-                        card_text = card.inner_text()
-                        # Try to extract title from card text (usually first line)
-                        lines = [l.strip() for l in card_text.split('\n') if l.strip()]
-                        if lines:
-                            title_text = lines[0][:100]  # Limit length
-                    
-                    company_text = None
-                    for company_selector in company_selectors:
-                        try:
-                            company = card.query_selector(company_selector)
-                            if company:
-                                company_text = company.inner_text().strip()
-                                if company_text:
-                                    break
-                        except:
-                            continue
-                    
-                    # Fallback: try to extract company from link text or card text
-                    if not company_text:
-                        try:
-                            # Sometimes company is in the subtitle link
-                            company_link = card.query_selector("a.base-search-card__subtitle-link")
-                            if company_link:
-                                company_text = company_link.inner_text().strip()
-                        except:
-                            pass
-                    
-                    location_text = None
-                    for location_selector in location_selectors:
-                        try:
-                            location = card.query_selector(location_selector)
-                            if location:
-                                location_text = location.inner_text().strip()
-                                if location_text and location_text not in ["·", "•", "|"]:
-                                    break
-                        except:
-                            continue
+                    # Use adaptive scraper to extract fields
+                    # It will try cached selectors first, then auto-discover if needed
+                    title_text = self.adaptive_scraper.extract_field(
+                        card,
+                        "title",
+                        multiple_selectors=title_selectors
+                    )
+
+                    company_text = self.adaptive_scraper.extract_field(
+                        card,
+                        "company",
+                        multiple_selectors=company_selectors
+                    )
+
+                    location_text = self.adaptive_scraper.extract_field(
+                        card,
+                        "location",
+                        multiple_selectors=location_selectors
+                    )
 
                     # Extract company name with vision fallback
                     company_name = company_text if company_text else "Unknown"
@@ -513,6 +490,10 @@ class LinkedInScraper(BaseScraper):
                 except Exception as e:
                     self.logger.warning(f"Error extracting job card: {e}")
                     continue
+
+            # Print cache statistics
+            if self.adaptive_scraper:
+                self.adaptive_scraper.print_cache_stats()
 
             return jobs_data
 
