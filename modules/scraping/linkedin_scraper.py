@@ -15,7 +15,7 @@ import base64
 
 from modules.scraping.base_scraper import BaseScraper
 from modules.scraping.job_models import JobPosting, ScraperConfig
-from modules.utils.helpers import generate_job_id, extract_keywords, clean_text
+from modules.utils.helpers import generate_job_id, extract_keywords, clean_text, human_delay, human_scroll_delay
 from modules.generation.ollama_client import get_ollama_client
 
 
