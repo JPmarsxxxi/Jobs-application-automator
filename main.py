@@ -78,6 +78,11 @@ Examples:
         help="Dry run mode - generate materials but don't submit applications",
     )
     parser.add_argument(
+        "--submit",
+        action="store_true",
+        help="Enable Phase 2: Submit applications (LinkedIn Easy Apply)",
+    )
+    parser.add_argument(
         "--manual-approval",
         action="store_true",
         default=True,
@@ -186,6 +191,7 @@ def run_single_session(args):
             "max_jobs": args.limit or 5,
             "user_info": USER_INFO,
             "dry_run": args.dry_run,
+            "submit_applications": args.submit,
             "manual_approval": not args.no_manual_approval,
             "headless": os.getenv("HEADLESS_MODE", "false").lower() == "true",
             "location": USER_INFO.get("location", "United Kingdom"),
