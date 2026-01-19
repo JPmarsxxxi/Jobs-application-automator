@@ -492,9 +492,7 @@ class LinkedInScraper(BaseScraper):
                             continue
 
                     # Extract company name with vision fallback
-                    company_name = "Unknown"
-                    if company:
-                        company_name = company.inner_text().strip()
+                    company_name = company_text if company_text else "Unknown"
 
                     # If text extraction failed, use vision model
                     if not company_name or company_name == "Unknown" or len(company_name) < 2:
