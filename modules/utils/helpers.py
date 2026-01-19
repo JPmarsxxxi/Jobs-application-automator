@@ -86,19 +86,6 @@ def rate_limit_delay(platform: str) -> float:
     return delays.get(platform.lower(), 2.0)
 
 
-def human_delay(min_seconds: float = 1.0, max_seconds: float = 3.0):
-    """
-    Add human-like delay with random variation
-
-    Args:
-        min_seconds: Minimum delay in seconds
-        max_seconds: Maximum delay in seconds
-    """
-    import random
-    delay = random.uniform(min_seconds, max_seconds)
-    time.sleep(delay)
-
-
 def wait_with_message(seconds: float, message: str = "Waiting"):
     """
     Wait with a progress message
