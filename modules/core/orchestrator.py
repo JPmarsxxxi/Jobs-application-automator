@@ -18,6 +18,7 @@ from modules.generation.material_generator import create_material_generator
 from modules.core.quality_control_log import get_qc_log
 from modules.core.logger import get_logger
 from modules.generation.ollama_client import get_ollama_client
+from modules.automation.linkedin_applicator import get_linkedin_applicator
 
 
 class JobHuntOrchestrator:
@@ -34,18 +35,21 @@ class JobHuntOrchestrator:
                 - max_jobs: Maximum number of jobs to process
                 - user_info: User information dictionary
                 - dry_run: Whether to run in dry-run mode
+                - submit_applications: Whether to submit applications (Phase 2)
                 - manual_approval: Whether to require manual approval
         """
         self.config = config
         self.logger = get_logger()
         self.qc_log = get_qc_log()
         self.ollama = get_ollama_client()
+        self.scraper = None  # Keep scraper instance for Phase 2
 
         # Statistics
         self.stats = {
             "jobs_scraped": 0,
             "cvs_generated": 0,
             "cover_letters_generated": 0,
+            "applications_submitted": 0,
             "errors": 0,
         }
 
@@ -111,6 +115,11 @@ class JobHuntOrchestrator:
                 headless=self.config.get("headless", False),
             )
             jobs = scraper.scrape_jobs()
+
+            # Keep scraper instance for Phase 2 (application submission)
+            if self.config.get("submit_applications", False):
+                self.scraper = scraper
+                self.logger.info("✓ Browser session kept open for application submission")
 
         else:
             self.logger.warning(f"Platform '{platform}' not yet implemented")
@@ -185,6 +194,57 @@ class JobHuntOrchestrator:
             self.stats["errors"] += 1
             return None
 
+    def submit_application(self, job: JobPosting, materials: Dict[str, Any]) -> bool:
+        """
+        Submit application for a job (Phase 2)
+
+        Args:
+            job: Job posting
+            materials: Generated materials (CV and cover letter)
+
+        Returns:
+            True if application submitted successfully
+        """
+        if not self.scraper or not self.scraper.page:
+            self.logger.error("No active browser session for application submission")
+            return False
+
+        try:
+            self.logger.info(f"\n{'='*60}")
+            self.logger.info(f"PHASE 2: APPLICATION SUBMISSION")
+            self.logger.info(f"{'='*60}")
+
+            # Get applicator
+            applicator = get_linkedin_applicator(
+                self.scraper.page,
+                self.config.get("user_info")
+            )
+
+            # Get file paths
+            cv_path = materials["cv"]["path"]
+            cl_path = materials.get("cover_letter", {}).get("path")
+
+            # Determine if dry run
+            dry_run = self.config.get("dry_run", True)
+
+            # Submit application
+            success = applicator.apply(
+                job=job,
+                cv_path=cv_path,
+                cover_letter_path=cl_path,
+                dry_run=dry_run
+            )
+
+            if success:
+                self.stats["applications_submitted"] += 1
+
+            return success
+
+        except Exception as e:
+            self.logger.error(f"Error submitting application: {e}", exc_info=True)
+            self.stats["errors"] += 1
+            return False
+
     def run(self) -> Dict[str, Any]:
         """
         Run the job hunt workflow
@@ -193,7 +253,11 @@ class JobHuntOrchestrator:
             Dictionary containing run results and statistics
         """
         self.logger.info("\n" + "=" * 60)
-        self.logger.info("AUTONOMOUS JOB APPLICATION BOT - PHASE 1")
+        if self.config.get("submit_applications", False):
+            phase_text = "PHASE 1 + 2" if self.config.get("dry_run") else "PHASE 1 + 2 (LIVE)"
+            self.logger.info(f"AUTONOMOUS JOB APPLICATION BOT - {phase_text}")
+        else:
+            self.logger.info("AUTONOMOUS JOB APPLICATION BOT - PHASE 1")
         self.logger.info("=" * 60)
 
         # Validate setup
@@ -246,21 +310,55 @@ class JobHuntOrchestrator:
                     "materials": materials,
                 })
 
-                # Manual approval if enabled
-                if self.config.get("manual_approval", True):
-                    self.logger.info("\n" + "-" * 60)
-                    self.logger.info("MANUAL APPROVAL REQUIRED")
-                    self.logger.info("-" * 60)
-                    self.logger.info(f"Job: {job.company} - {job.title}")
-                    self.logger.info(f"CV: {materials['cv']['path']}")
-                    self.logger.info(f"Cover Letter: {materials['cover_letter']['path']}")
-                    self.logger.info("")
-                    self.logger.info("Review the generated materials, then:")
+                # Phase 2: Submit application if enabled
+                if self.config.get("submit_applications", False):
+                    # Manual approval if enabled
+                    if self.config.get("manual_approval", True):
+                        self.logger.info("\n" + "-" * 60)
+                        self.logger.info("MANUAL APPROVAL REQUIRED")
+                        self.logger.info("-" * 60)
+                        self.logger.info(f"Job: {job.company} - {job.title}")
+                        self.logger.info(f"CV: {materials['cv']['path']}")
+                        self.logger.info(f"Cover Letter: {materials['cover_letter']['path']}")
+                        self.logger.info("")
+                        self.logger.info("Review the generated materials, then:")
 
-                    response = input("Continue to next job? (y/n): ").strip().lower()
-                    if response != 'y':
-                        self.logger.info("Stopping at user request")
-                        break
+                        if self.config.get("dry_run", True):
+                            response = input("Submit application (DRY RUN)? (y/n): ").strip().lower()
+                        else:
+                            response = input("Submit application (REAL SUBMISSION)? (y/n): ").strip().lower()
+
+                        if response != 'y':
+                            self.logger.info("Skipping application")
+                            continue
+
+                    # Submit application
+                    self.submit_application(job, materials)
+
+                else:
+                    # Phase 1: Just generate materials, manual approval
+                    if self.config.get("manual_approval", True):
+                        self.logger.info("\n" + "-" * 60)
+                        self.logger.info("MANUAL APPROVAL REQUIRED")
+                        self.logger.info("-" * 60)
+                        self.logger.info(f"Job: {job.company} - {job.title}")
+                        self.logger.info(f"CV: {materials['cv']['path']}")
+                        self.logger.info(f"Cover Letter: {materials['cover_letter']['path']}")
+                        self.logger.info("")
+                        self.logger.info("Review the generated materials, then:")
+
+                        response = input("Continue to next job? (y/n): ").strip().lower()
+                        if response != 'y':
+                            self.logger.info("Stopping at user request")
+                            break
+
+        # Cleanup: Close browser if Phase 2 was used
+        if self.scraper:
+            try:
+                self.scraper.cleanup()
+                self.logger.info("✓ Browser session closed")
+            except:
+                pass
 
         # Finalize quality control log
         self.qc_log.finalize_run()
@@ -272,10 +370,19 @@ class JobHuntOrchestrator:
         self.logger.info(f"Jobs Scraped: {self.stats['jobs_scraped']}")
         self.logger.info(f"CVs Generated: {self.stats['cvs_generated']}")
         self.logger.info(f"Cover Letters Generated: {self.stats['cover_letters_generated']}")
+
+        if self.config.get("submit_applications", False):
+            self.logger.info(f"Applications Submitted: {self.stats['applications_submitted']}")
+
         self.logger.info(f"Errors: {self.stats['errors']}")
         self.logger.info("=" * 60)
         self.logger.info(f"\n✓ Quality Control Log: workspace/logs/QUALITY_CONTROL_LOG.md")
         self.logger.info("  Review this log to verify quality of generated materials")
+
+        if self.config.get("submit_applications", False):
+            self.logger.info(f"\n✓ Application Log: workspace/applications_log.csv")
+            self.logger.info("  Review this log for application submission details")
+
         self.logger.info("")
 
         return {
