@@ -117,6 +117,9 @@ class ScraperConfig:
     # Sorting
     sort_by: str = "most_recent"  # most_recent, most_relevant
 
+    # Browser control
+    keep_browser_open: bool = False  # For Phase 2 application submission
+
     # Limits
     max_results: int = 20
 

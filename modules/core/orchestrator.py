@@ -108,18 +108,21 @@ class JobHuntOrchestrator:
         jobs = []
 
         if platform == "linkedin":
+            # Keep browser open if Phase 2 is enabled
+            keep_open = self.config.get("submit_applications", False)
+
             scraper = create_linkedin_scraper(
                 search_terms=search_terms,
                 location=self.config.get("location", "United Kingdom"),
                 max_results=max_jobs,
                 headless=self.config.get("headless", False),
+                keep_browser_open=keep_open,
             )
             jobs = scraper.scrape_jobs()
 
             # Keep scraper instance for Phase 2 (application submission)
-            if self.config.get("submit_applications", False):
+            if keep_open:
                 self.scraper = scraper
-                self.logger.info("✓ Browser session kept open for application submission")
 
         else:
             self.logger.warning(f"Platform '{platform}' not yet implemented")

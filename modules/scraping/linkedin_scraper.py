@@ -786,6 +786,7 @@ def create_linkedin_scraper(
     location: str = "United Kingdom",
     max_results: int = 5,
     headless: bool = False,
+    keep_browser_open: bool = False,
 ) -> LinkedInScraper:
     """
     Create a configured LinkedIn scraper
@@ -795,6 +796,7 @@ def create_linkedin_scraper(
         location: Location to search in
         max_results: Maximum number of results
         headless: Run browser in headless mode
+        keep_browser_open: Keep browser open for Phase 2 (application submission)
 
     Returns:
         Configured LinkedInScraper instance
@@ -806,6 +808,7 @@ def create_linkedin_scraper(
         sort_by="most_recent",
         max_results=max_results,
         headless=headless,
+        keep_browser_open=keep_browser_open,
         experience_level=["Entry level", "Associate"],  # For recent graduates
         job_type=["Full-time"],
     )
