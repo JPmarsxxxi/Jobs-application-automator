@@ -11,7 +11,6 @@ import os
 import random
 from urllib.parse import urlencode
 from pathlib import Path
-import base64
 
 from modules.scraping.base_scraper import BaseScraper
 from modules.scraping.job_models import JobPosting, ScraperConfig
@@ -459,10 +458,6 @@ class LinkedInScraper(BaseScraper):
 
             self.logger.debug(f"Screenshot saved: {screenshot_path}")
 
-            # Read screenshot as base64
-            with open(screenshot_path, "rb") as image_file:
-                image_data = base64.b64encode(image_file.read()).decode('utf-8')
-
             # Prompt for vision model
             prompt = """Look at this LinkedIn job posting card. Extract ONLY the company name.
 
@@ -475,9 +470,8 @@ Company name:"""
 
             # Use vision model to extract company name
             company_name = self.ollama.analyze_image(
-                image_data=image_data,
-                prompt=prompt,
-                max_tokens=50
+                image_path=str(screenshot_path),
+                prompt=prompt
             )
 
             if company_name:
