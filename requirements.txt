@@ -32,8 +32,9 @@ numpy>=1.24.0
 # Document Generation
 python-docx>=1.1.0
 
-# Image Processing (Optional - for Phase 2 vision)
+# Image Processing & OCR (Phase 2)
 Pillow>=10.0.0
+pytesseract>=0.3.10  # OCR for fast form field extraction
 
 # Utilities
 python-dateutil>=2.8.0
