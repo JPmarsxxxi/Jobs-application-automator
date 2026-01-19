@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 from playwright.sync_api import Page
 
-from modules.automation.vision_analyzer import get_vision_analyzer
+from modules.automation.hybrid_form_analyzer import get_hybrid_analyzer
 from modules.automation.form_filler import get_form_filler
 from modules.automation.file_uploader import get_file_uploader
 from modules.utils.helpers import human_delay
@@ -23,8 +23,8 @@ class BrowserController:
         self.user_info = user_info
         self.logger = logging.getLogger(__name__)
 
-        # Initialize components
-        self.vision = get_vision_analyzer()
+        # Initialize components - use hybrid analyzer for speed
+        self.analyzer = get_hybrid_analyzer()
         self.filler = get_form_filler(user_info, page)
         self.uploader = get_file_uploader(page)
 
@@ -131,10 +131,10 @@ class BrowserController:
                 screenshot_path = self._take_screenshot(f"03_page_{page_num}")
                 result["screenshots"].append(screenshot_path)
 
-                form_data = self.vision.analyze_form(screenshot_path)
+                form_data = self.analyzer.analyze_form(screenshot_path)
 
                 # Check for CAPTCHA
-                if self.vision.detect_captcha(screenshot_path):
+                if self.analyzer.detect_captcha(screenshot_path):
                     self.logger.warning("⚠ CAPTCHA detected - manual intervention required")
                     result["status"] = "captcha_required"
                     human_delay(30.0, 30.0)  # Wait for manual solving
@@ -175,7 +175,7 @@ class BrowserController:
                             screenshot_path = self._take_screenshot("04_confirmation")
                             result["screenshots"].append(screenshot_path)
 
-                            verification = self.vision.verify_submission(screenshot_path)
+                            verification = self.analyzer.verify_submission(screenshot_path)
 
                             result["success"] = verification["success"]
                             result["status"] = "submitted" if verification["success"] else "verification_failed"
