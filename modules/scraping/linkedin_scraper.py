@@ -422,9 +422,9 @@ class LinkedInScraper(BaseScraper):
                     jobs_data.append({
                         "job_id": job_id,
                         "job_url": job_url,
-                        "title": title.inner_text().strip() if title else "Unknown",
+                        "title": title_text if title_text else "Unknown",
                         "company": company_name,
-                        "location": location.inner_text().strip() if location else "Unknown",
+                        "location": location_text if location_text else "Unknown",
                         "card_element": card,
                     })
                     
