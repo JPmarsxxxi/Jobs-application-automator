@@ -262,7 +262,11 @@ class BaseScraper(ABC):
             return self.jobs
 
         finally:
-            self.close_browser()
+            # Only close browser if not keeping open for Phase 2
+            if not self.config.keep_browser_open:
+                self.close_browser()
+            else:
+                self.logger.info("✓ Browser kept open for Phase 2")
 
     def login_if_required(self):
         """
