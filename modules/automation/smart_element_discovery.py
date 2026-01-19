@@ -75,15 +75,53 @@ class SmartElementDiscovery:
             abs_x = element_box['x'] + target_coords['x']
             abs_y = element_box['y'] + target_coords['y']
 
-            # Find HTML element at those coordinates
-            target_element = self.page.locator(f"xpath=//*").element_at(abs_x, abs_y)
+            # Use JavaScript to find element at coordinates and generate selector
+            selector = self.page.evaluate('''
+                (coords) => {
+                    const element = document.elementFromPoint(coords.x, coords.y);
+                    if (!element) return null;
 
-            if not target_element:
+                    // Generate selector using ID, class, or tag
+                    if (element.id) {
+                        return '#' + element.id;
+                    }
+
+                    // Try data attributes
+                    const dataAttrs = Array.from(element.attributes)
+                        .filter(attr => attr.name.startsWith('data-'))
+                        .map(attr => `[${attr.name}="${attr.value}"]`);
+                    if (dataAttrs.length > 0) {
+                        return element.tagName.toLowerCase() + dataAttrs[0];
+                    }
+
+                    // Try classes
+                    if (element.className && typeof element.className === 'string') {
+                        const classes = element.className.trim().split(/\\s+/).filter(c => c);
+                        if (classes.length > 0) {
+                            // Use first class that looks semantic (not utility class)
+                            const semanticClass = classes.find(c => !c.match(/^(p|m|text|bg|flex|grid)-/));
+                            if (semanticClass) {
+                                return element.tagName.toLowerCase() + '.' + semanticClass;
+                            }
+                            return element.tagName.toLowerCase() + '.' + classes[0];
+                        }
+                    }
+
+                    // Fallback: tag with nth-of-type
+                    const parent = element.parentElement;
+                    if (parent) {
+                        const siblings = Array.from(parent.children).filter(e => e.tagName === element.tagName);
+                        const index = siblings.indexOf(element) + 1;
+                        return element.tagName.toLowerCase() + ':nth-of-type(' + index + ')';
+                    }
+
+                    return element.tagName.toLowerCase();
+                }
+            ''', {'x': abs_x, 'y': abs_y})
+
+            if not selector:
                 self.logger.debug(f"No element found at coordinates ({abs_x}, {abs_y})")
                 return None
-
-            # Generate selector for this element
-            selector = self._generate_selector(target_element)
 
             self.logger.info(f"✓ Discovered selector for {field_type}: {selector}")
             return selector
@@ -155,56 +193,6 @@ class SmartElementDiscovery:
                     return {'x': item['x'], 'y': item['y']}
 
         return None
-
-    def _generate_selector(self, element: ElementHandle) -> str:
-        """
-        Generate a robust CSS selector for an element
-
-        Priority:
-        1. ID (if unique)
-        2. Data attributes
-        3. Class + tag
-        4. XPath as fallback
-        """
-        try:
-            # Get element attributes
-            tag = element.evaluate("el => el.tagName.toLowerCase()")
-            elem_id = element.get_attribute("id")
-            classes = element.get_attribute("class")
-            data_attrs = element.evaluate("""
-                el => {
-                    const attrs = {};
-                    for (let attr of el.attributes) {
-                        if (attr.name.startsWith('data-')) {
-                            attrs[attr.name] = attr.value;
-                        }
-                    }
-                    return attrs;
-                }
-            """)
-
-            # Strategy 1: Use ID if present
-            if elem_id:
-                return f"#{elem_id}"
-
-            # Strategy 2: Use data attributes (most stable)
-            if data_attrs:
-                for attr_name, attr_value in data_attrs.items():
-                    return f"{tag}[{attr_name}='{attr_value}']"
-
-            # Strategy 3: Use tag + classes
-            if classes:
-                # Use first 2 classes for specificity
-                class_list = classes.split()[:2]
-                class_selector = ".".join(class_list)
-                return f"{tag}.{class_selector}"
-
-            # Strategy 4: Just tag (weak but works)
-            return tag
-
-        except Exception as e:
-            self.logger.error(f"Selector generation failed: {e}")
-            return None
 
 
 def get_smart_discovery(page: Page) -> SmartElementDiscovery:
