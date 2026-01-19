@@ -69,9 +69,16 @@ class BrowserController:
         }
 
         try:
-            # Navigate to job page
-            self.page.goto(job_url, wait_until="domcontentloaded")
-            human_delay(2.0, 4.0)
+            # Navigate to job page only if not already there
+            # (Browser might already be on this page from scraping phase)
+            current_url = self.page.url
+            if job_url not in current_url:
+                self.logger.info(f"Navigating to job page: {job_url}")
+                self.page.goto(job_url, wait_until="domcontentloaded")
+                human_delay(2.0, 4.0)
+            else:
+                self.logger.info("Already on job page from scraping - no navigation needed")
+                human_delay(1.0, 2.0)
 
             # Take initial screenshot
             screenshot_path = self._take_screenshot("01_initial_page")
