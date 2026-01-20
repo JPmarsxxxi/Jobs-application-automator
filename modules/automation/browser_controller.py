@@ -375,12 +375,15 @@ class BrowserController:
             current_url = self.page.url
 
             # Get visual description from Llava
-            self.logger.info(f"Using Llava to find {button_name}...")
+            self.logger.info(f"👁️  VISION MODE: Finding {button_name} using Llava + Llama...")
             visual_desc = self.vision.get_brief_visual_description(
                 screenshot_path,
                 goal=f"Find and click {button_name} button",
                 current_url=current_url
             )
+
+            if not visual_desc:
+                self.logger.warning(f"⚠️  Vision unavailable, falling back to DOM-only mode")
 
             # Get DOM elements (buttons/links)
             dom_elements = []
@@ -427,14 +430,15 @@ class BrowserController:
                         elem = self.page.locator(selector).first
                         if elem.is_visible():
                             elem.click()
-                            self.logger.info(f"✓ Clicked {button_name} via {selector}")
+                            self.logger.info(f"✅ VISION SUCCESS: Clicked {button_name} via {selector}")
                             human_delay(1.0, 2.0)
                             self.consecutive_failures = 0
                             return True
                     except Exception as e:
-                        self.logger.warning(f"Failed to click {selector}: {e}")
+                        self.logger.warning(f"⚠️  Vision-suggested selector failed: {selector}: {e}")
 
             # Fallback: try keyword matching in DOM
+            self.logger.info(f"🔄 FALLBACK: Trying keyword matching in DOM...")
             for elem_data in dom_elements:
                 elem_text = elem_data['text'].lower()
                 if any(kw.lower() in elem_text for kw in button_keywords):
@@ -443,14 +447,14 @@ class BrowserController:
                         elem = self.page.locator(selector).first
                         if elem.is_visible():
                             elem.click()
-                            self.logger.info(f"✓ Clicked {button_name} via fallback: {selector}")
+                            self.logger.info(f"✅ FALLBACK SUCCESS: Clicked {button_name} via {selector}")
                             human_delay(1.0, 2.0)
                             self.consecutive_failures = 0
                             return True
                     except:
                         continue
 
-            self.logger.warning(f"Could not find {button_name}")
+            self.logger.error(f"❌ FAILED: Could not find {button_name} button (vision + fallback both failed)")
             self.consecutive_failures += 1
             return False
 
