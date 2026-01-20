@@ -183,12 +183,18 @@ Available actions:
 - extract_text: {"action": "extract_text", "selector": "element selector"}
 - complete: {"action": "complete", "reason": "Goal achieved"}
 
-IMPORTANT RULES:
-1. Use selectors from DOM elements list (they are guaranteed to exist)
-2. When typing in search box, it auto-submits with Enter
-3. Prefer elements with meaningful text (avoid nav chrome like "nav-logo")
-4. Check visual description for page type before acting
-5. Match actions to page type (search on homepage, click products on results, etc.)
+CRITICAL RULES FOR BUTTON SELECTION:
+1. ONLY select buttons whose TEXT matches the goal's intent
+   - Goal says "Next button"? → Select button with text "Next", "Continue", "Proceed", "Review"
+   - Goal says "Easy Apply"? → Select button with text "Easy Apply", "Apply Now", "Apply"
+   - Goal says "Submit"? → Select button with text "Submit", "Send", "Submit application"
+2. NEVER select accessibility/navigation buttons like:
+   - "Skip to search", "Skip to main content", "Keyboard shortcuts"
+   - These are NOT the buttons you're looking for!
+3. When multiple buttons match, prefer the one whose text EXACTLY matches the goal
+4. If NO buttons match the goal text, return: {"action": "wait", "ms": 1000}
+5. Use selectors from DOM elements list (they are guaranteed to exist)
+6. Check visual description for context before selecting
 
 Return ONLY a JSON object with the action, no additional text."""
 

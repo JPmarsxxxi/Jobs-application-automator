@@ -393,11 +393,28 @@ class BrowserController:
 
             # Get DOM elements (buttons/links)
             print(f"\n📋 Extracting DOM elements...")
+
+            # Accessibility buttons to ignore (they pollute Llama's decision space)
+            # Only filter truly accessibility/navigation chrome, not functional buttons
+            skip_buttons = [
+                'skip to search', 'skip to main content', 'skip to', 'skip navigation',
+                'keyboard shortcuts', 'close jump menu', 'open shortcuts'
+            ]
+
             dom_elements = []
             for elem in self.page.query_selector_all('button, a, [role="button"]'):
                 try:
                     text = elem.inner_text()
                     if text and len(text) < 100:  # Filter out long text
+                        # Skip accessibility and navigation buttons
+                        text_lower = text.lower().strip()
+                        if any(skip_text in text_lower for skip_text in skip_buttons):
+                            continue
+
+                        # Skip empty or whitespace-only text
+                        if not text_lower or text_lower.isspace():
+                            continue
+
                         selector = None
                         # Try to generate selector
                         elem_id = elem.get_attribute('id')
