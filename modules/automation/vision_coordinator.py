@@ -193,6 +193,11 @@ IMPORTANT RULES:
 Return ONLY a JSON object with the action, no additional text."""
 
         # User prompt combining vision + DOM
+        # Build avoid patterns section (can't use \n in f-string expressions)
+        avoid_section = ""
+        if avoid_patterns:
+            avoid_section = f"\nAVOID THESE PATTERNS (failed recently):\n{self._format_failed_patterns(avoid_patterns)}\n"
+
         user_prompt = f"""GOAL: {goal}
 CURRENT URL: {current_url}
 
@@ -204,9 +209,7 @@ INTERACTIVE DOM ELEMENTS (with selectors):
 
 RECENT HISTORY (last 5 actions):
 {self._format_history_for_prompt(history_summary)}
-
-{f'AVOID THESE PATTERNS (failed recently):\n{self._format_failed_patterns(avoid_patterns)}\n' if avoid_patterns else ''}
-
+{avoid_section}
 Based on the visual description and available DOM elements, what is the NEXT action?
 Return ONLY the JSON action object."""
 
