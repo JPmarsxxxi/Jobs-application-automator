@@ -46,7 +46,7 @@ class VisionCoordinator:
             Brief description from Llava
         """
         try:
-            self.logger.info("Calling Llava for brief visual description...")
+            self.logger.info(f"🔮 LLAVA: Analyzing screenshot: {screenshot_path}")
 
             # Prompt for BRIEF description
             prompt = f"""Analyze this webpage screenshot and describe what you see in 2-3 SHORT sentences.
@@ -74,14 +74,16 @@ Description:"""
                 # Truncate if too long
                 if len(response) > 500:
                     response = response[:500] + "..."
-                self.logger.info(f"Llava description: {response[:200]}...")
+                self.logger.info(f"✅ LLAVA: {response[:150]}...")
                 return response
             else:
-                self.logger.warning("Llava returned empty response")
+                self.logger.warning("❌ LLAVA: Returned empty response")
                 return None
 
         except Exception as e:
-            self.logger.error(f"Error getting visual description: {e}")
+            self.logger.error(f"❌ LLAVA ERROR: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
             return None
 
     def decide_action(
@@ -107,7 +109,7 @@ Description:"""
         Returns:
             Action dict to execute
         """
-        self.logger.info("Llama deciding action from vision + DOM...")
+        self.logger.info(f"🧠 LLAMA: Deciding action based on vision + {len(dom_elements)} DOM elements...")
 
         # Build recent history summary
         history_summary = []
@@ -211,20 +213,23 @@ Return ONLY the JSON action object."""
                         if 'type' in action:
                             action['action'] = action.pop('type')
                         else:
-                            self.logger.warning("Action missing 'action' key, using wait")
+                            self.logger.warning("❌ LLAMA: Action missing 'action' key, using wait")
                             return {"action": "wait", "ms": 1000}
 
-                    self.logger.info(f"Llama decided: {action.get('action')}")
+                    action_str = f"{action.get('action')} on {action.get('selector', action.get('element_description', 'unknown'))}"
+                    self.logger.info(f"✅ LLAMA: Decided → {action_str}")
                     return action
                 else:
-                    self.logger.warning("Could not parse JSON from Llama response")
+                    self.logger.warning(f"❌ LLAMA: Could not parse JSON from response: {response[:200]}")
                     return {"action": "wait", "ms": 1000}
             else:
-                self.logger.warning("Llama returned empty response")
+                self.logger.warning("❌ LLAMA: Returned empty response")
                 return {"action": "wait", "ms": 1000}
 
         except Exception as e:
-            self.logger.error(f"Error deciding action: {e}")
+            self.logger.error(f"❌ LLAMA ERROR: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
             return {"action": "wait", "ms": 1000}
 
     def _format_elements_for_prompt(self, elements: List[Dict]) -> str:
