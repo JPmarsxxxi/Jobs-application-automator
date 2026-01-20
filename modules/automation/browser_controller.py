@@ -13,6 +13,7 @@ from modules.automation.hybrid_form_analyzer import get_hybrid_analyzer
 from modules.automation.form_filler import get_form_filler
 from modules.automation.file_uploader import get_file_uploader
 from modules.automation.adaptive_scraper import get_adaptive_scraper
+from modules.automation.vision_coordinator import get_vision_coordinator
 from modules.utils.helpers import human_delay
 
 
@@ -24,15 +25,22 @@ class BrowserController:
         self.user_info = user_info
         self.logger = logging.getLogger(__name__)
 
-        # Initialize components - use hybrid analyzer for speed
-        self.analyzer = get_hybrid_analyzer()
+        # Initialize components
+        self.analyzer = get_hybrid_analyzer()  # OCR/vision form analyzer (fallback)
         self.filler = get_form_filler(user_info, page)
         self.uploader = get_file_uploader(page)
         self.adaptive = get_adaptive_scraper(page, "application")
+        self.vision = get_vision_coordinator()  # Llava + Llama coordinator
 
         # Screenshot directory
         self.screenshots_dir = Path(screenshots_dir)
         self.screenshots_dir.mkdir(parents=True, exist_ok=True)
+
+        # Action tracking for vision-based recovery
+        self.history = []
+        self.failed_patterns = []
+        self.consecutive_failures = 0
+        self.max_consecutive_failures = 3
 
     def apply_to_job(
         self,
@@ -304,36 +312,44 @@ class BrowserController:
 
     def _detect_application_type(self) -> str:
         """
-        Detect what type of application this is using vision/OCR.
-        No hardcoded selectors - works on ANY site!
+        Detect application type using Llava (vision) + Llama (decision).
+        Works on ANY site - no hardcoded selectors!
         """
         try:
-            # Take screenshot of current page
+            # Take screenshot
             screenshot_path = self._take_screenshot("detect_app_type")
+            current_url = self.page.url
 
-            # Use OCR to find button text
-            ocr_results = self.analyzer.ocr.extract_text_with_boxes(screenshot_path) if self.analyzer.use_ocr else []
+            # Get brief visual description from Llava
+            self.logger.info("Using Llava to detect application type...")
+            visual_desc = self.vision.get_brief_visual_description(
+                screenshot_path,
+                goal="Detect application type",
+                current_url=current_url
+            )
 
-            # Look for common application button keywords
-            easy_apply_keywords = ["easy apply", "apply now", "apply", "submit application"]
-            external_keywords = ["apply on company site", "apply on website", "visit website"]
+            if not visual_desc:
+                # Fallback to URL-based detection
+                self.logger.warning("Llava unavailable, using URL-based detection")
+                if "linkedin.com" in current_url:
+                    return "linkedin_easy_apply"
+                else:
+                    return "external"
 
-            found_text_lower = " ".join([r['text'].lower() for r in ocr_results])
+            # Check description for application type indicators
+            desc_lower = visual_desc.lower()
 
-            # Check for Easy Apply (LinkedIn style)
-            if any(keyword in found_text_lower for keyword in easy_apply_keywords):
-                self.logger.info(f"✓ Detected Easy Apply button via OCR")
+            if "easy apply" in desc_lower or "apply now" in desc_lower:
+                self.logger.info("✓ Detected Easy Apply via vision")
                 return "linkedin_easy_apply"
 
-            # Check for external redirect
-            if any(keyword in found_text_lower for keyword in external_keywords):
-                self.logger.info(f"✓ Detected external application redirect")
+            if "external" in desc_lower or "company site" in desc_lower or "career page" in desc_lower:
+                self.logger.info("✓ Detected external application via vision")
                 return "external"
 
-            # Fallback: check URL
-            url = self.page.url
-            if "linkedin.com" in url:
-                return "linkedin_easy_apply"  # Assume Easy Apply if on LinkedIn
+            # Final fallback: check URL
+            if "linkedin.com" in current_url:
+                return "linkedin_easy_apply"
             else:
                 return "external"
 
@@ -343,7 +359,8 @@ class BrowserController:
 
     def _click_button_by_text(self, button_keywords: List[str], button_name: str = "button") -> bool:
         """
-        Universal button clicker using OCR/vision - works on ANY site!
+        Universal button clicker using Llava (vision) + Llama (decision).
+        Works on ANY site!
 
         Args:
             button_keywords: List of possible button text (e.g., ["Easy Apply", "Apply Now"])
@@ -355,47 +372,91 @@ class BrowserController:
         try:
             # Take screenshot
             screenshot_path = self._take_screenshot(f"find_{button_name}")
+            current_url = self.page.url
 
-            # Use OCR to find button text
-            if self.analyzer.use_ocr:
-                ocr_results = self.analyzer.ocr.extract_text_with_boxes(screenshot_path)
+            # Get visual description from Llava
+            self.logger.info(f"Using Llava to find {button_name}...")
+            visual_desc = self.vision.get_brief_visual_description(
+                screenshot_path,
+                goal=f"Find and click {button_name} button",
+                current_url=current_url
+            )
 
-                # Find button coordinates
-                for keyword in button_keywords:
-                    for item in ocr_results:
-                        if keyword.lower() in item['text'].lower():
-                            # Found it! Click at center of bounding box
-                            click_x = item['x'] + item['width'] / 2
-                            click_y = item['y'] + item['height'] / 2
-
-                            self.logger.info(f"✓ Found '{item['text']}' button via OCR at ({click_x}, {click_y})")
-                            self.page.mouse.click(click_x, click_y)
-                            human_delay(1.0, 2.0)
-                            return True
-
-            # Fallback: try hardcoded selectors
-            selectors = [
-                f"button:has-text('{keyword}')" for keyword in button_keywords
-            ] + [
-                f"button[aria-label*='{keyword}']" for keyword in button_keywords
-            ]
-
-            for selector in selectors:
+            # Get DOM elements (buttons/links)
+            dom_elements = []
+            for elem in self.page.query_selector_all('button, a, [role="button"]'):
                 try:
-                    button = self.page.locator(selector).first
-                    if button.is_visible():
-                        button.click()
-                        self.logger.info(f"✓ Clicked {button_name} via selector")
-                        human_delay(1.0, 2.0)
-                        return True
+                    text = elem.inner_text()
+                    if text and len(text) < 100:  # Filter out long text
+                        selector = None
+                        # Try to generate selector
+                        elem_id = elem.get_attribute('id')
+                        if elem_id:
+                            selector = f"#{elem_id}"
+                        else:
+                            elem_class = elem.get_attribute('class')
+                            if elem_class:
+                                first_class = elem_class.split()[0]
+                                selector = f".{first_class}"
+
+                        if selector:
+                            dom_elements.append({
+                                'type': 'button',
+                                'text': text,
+                                'selector': selector
+                            })
                 except:
                     continue
 
+            # Ask Llama to decide which button to click
+            goal = f"Click the '{button_keywords[0]}' button to proceed"
+            action = self.vision.decide_action(
+                visual_description=visual_desc or "Page with interactive elements",
+                dom_elements=dom_elements,
+                goal=goal,
+                current_url=current_url,
+                history=self.history,
+                failed_patterns=self.failed_patterns
+            )
+
+            # Execute the action
+            if action.get('action') == 'click':
+                selector = action.get('selector')
+                if selector:
+                    try:
+                        elem = self.page.locator(selector).first
+                        if elem.is_visible():
+                            elem.click()
+                            self.logger.info(f"✓ Clicked {button_name} via {selector}")
+                            human_delay(1.0, 2.0)
+                            self.consecutive_failures = 0
+                            return True
+                    except Exception as e:
+                        self.logger.warning(f"Failed to click {selector}: {e}")
+
+            # Fallback: try keyword matching in DOM
+            for elem_data in dom_elements:
+                elem_text = elem_data['text'].lower()
+                if any(kw.lower() in elem_text for kw in button_keywords):
+                    try:
+                        selector = elem_data['selector']
+                        elem = self.page.locator(selector).first
+                        if elem.is_visible():
+                            elem.click()
+                            self.logger.info(f"✓ Clicked {button_name} via fallback: {selector}")
+                            human_delay(1.0, 2.0)
+                            self.consecutive_failures = 0
+                            return True
+                    except:
+                        continue
+
             self.logger.warning(f"Could not find {button_name}")
+            self.consecutive_failures += 1
             return False
 
         except Exception as e:
             self.logger.error(f"Error clicking {button_name}: {e}")
+            self.consecutive_failures += 1
             return False
 
     def _click_easy_apply_button(self) -> bool:

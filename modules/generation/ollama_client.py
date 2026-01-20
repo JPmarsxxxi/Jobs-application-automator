@@ -112,6 +112,29 @@ class OllamaClient:
         self.logger.info(f"✓ Required models available: {self.text_model}, {self.vision_model}")
         return True
 
+    def chat(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None,
+        model: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Chat-style text generation (alias for generate_text for compatibility).
+
+        Args:
+            prompt: User prompt
+            system_prompt: System prompt (optional)
+            temperature: Sampling temperature (0.0 - 1.0)
+            max_tokens: Maximum tokens to generate
+            model: Model to use (default: self.text_model)
+
+        Returns:
+            Generated text or None if error
+        """
+        return self.generate_text(prompt, system_prompt, temperature, max_tokens, model)
+
     def generate_text(
         self,
         prompt: str,
