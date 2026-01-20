@@ -228,6 +228,11 @@ Return ONLY the JSON action object."""
                 if json_match:
                     action = json.loads(json_match.group())
 
+                    # Fix double-wrapping bug: Llama sometimes returns {'action': {'action': 'click', ...}}
+                    if 'action' in action and isinstance(action['action'], dict):
+                        print(f"⚠️  UNWRAPPING: Llama returned double-wrapped action")
+                        action = action['action']  # Unwrap it
+
                     # Validate action has 'action' key
                     if 'action' not in action:
                         if 'type' in action:
