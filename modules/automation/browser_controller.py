@@ -440,9 +440,15 @@ class BrowserController:
             if action.get('action') == 'click':
                 selector = action.get('selector')
                 if selector:
-                    print(f"   Trying to click: {selector}")
+                    print(f"   Trying vision-suggested selector: {selector}")
                     try:
                         elem = self.page.locator(selector).first
+                        # Try scrolling into view first
+                        try:
+                            elem.scroll_into_view_if_needed(timeout=2000)
+                        except:
+                            pass
+
                         if elem.is_visible():
                             elem.click()
                             print(f"✅ VISION SUCCESS: Clicked {button_name} via {selector}")
@@ -450,41 +456,77 @@ class BrowserController:
                             human_delay(1.0, 2.0)
                             self.consecutive_failures = 0
                             return True
+                        else:
+                            print(f"   Selector found but not visible")
                     except Exception as e:
                         print(f"⚠️  Vision-suggested selector failed: {selector}")
                         print(f"   Error: {e}")
                         self.logger.warning(f"⚠️  Vision-suggested selector failed: {selector}: {e}")
 
-            # Fallback: try keyword matching in DOM
-            print(f"\n🔄 FALLBACK: Trying keyword matching in DOM...")
-            self.logger.info(f"🔄 FALLBACK: Trying keyword matching in DOM...")
+            # Fallback 1: Try ALL buttons that match keywords (not just first)
+            print(f"\n🔄 FALLBACK 1: Trying ALL buttons with matching text...")
+            self.logger.info(f"🔄 FALLBACK 1: Trying keyword matching in DOM...")
             matches_found = 0
             for elem_data in dom_elements:
                 elem_text = elem_data['text'].lower()
                 if any(kw.lower() in elem_text for kw in button_keywords):
                     matches_found += 1
-                    print(f"   Trying: {elem_data['text'][:50]} → {elem_data['selector']}")
+                    print(f"   Match #{matches_found}: '{elem_data['text'][:50]}' → {elem_data['selector']}")
                     try:
                         selector = elem_data['selector']
                         elem = self.page.locator(selector).first
+
+                        # Try scrolling into view
+                        try:
+                            elem.scroll_into_view_if_needed(timeout=2000)
+                        except:
+                            pass
+
                         if elem.is_visible():
                             elem.click()
-                            print(f"✅ FALLBACK SUCCESS: Clicked {button_name} via {selector}")
+                            print(f"✅ FALLBACK 1 SUCCESS: Clicked {button_name} via {selector}")
                             self.logger.info(f"✅ FALLBACK SUCCESS: Clicked {button_name} via {selector}")
                             human_delay(1.0, 2.0)
                             self.consecutive_failures = 0
                             return True
+                        else:
+                            print(f"      Not visible, skipping")
                     except Exception as e:
-                        print(f"   Failed: {e}")
+                        print(f"      Failed: {e}")
                         continue
+
+            # Fallback 2: Use Playwright's built-in text matcher
+            print(f"\n🔄 FALLBACK 2: Using Playwright's text-based button finder...")
+            for keyword in button_keywords:
+                try:
+                    print(f"   Trying: button containing '{keyword}'")
+                    # Try finding button by text using Playwright's built-in matcher
+                    buttons = self.page.get_by_role("button", name=keyword).all()
+                    print(f"      Found {len(buttons)} buttons")
+
+                    for i, btn in enumerate(buttons):
+                        try:
+                            if btn.is_visible():
+                                print(f"      Button #{i+1} is visible, clicking...")
+                                btn.click()
+                                print(f"✅ FALLBACK 2 SUCCESS: Clicked {button_name} by text '{keyword}'")
+                                self.logger.info(f"✅ FALLBACK 2 SUCCESS: Clicked {button_name}")
+                                human_delay(1.0, 2.0)
+                                self.consecutive_failures = 0
+                                return True
+                        except:
+                            continue
+                except Exception as e:
+                    print(f"   Failed: {e}")
+                    continue
 
             print(f"\n❌ TOTAL FAILURE: Could not find '{button_name}' button")
             print(f"   Vision-suggested selector: {action.get('selector', 'none')}")
-            print(f"   Keyword matches found: {matches_found}")
+            print(f"   Keyword matches found in DOM: {matches_found}")
             print(f"   Total DOM elements checked: {len(dom_elements)}")
             print(f"{'='*80}\n")
 
-            self.logger.error(f"❌ FAILED: Could not find {button_name} button (vision + fallback both failed)")
+            self.logger.error(f"❌ FAILED: Could not find {button_name} button (all fallbacks failed)")
             self.consecutive_failures += 1
             return False
 
