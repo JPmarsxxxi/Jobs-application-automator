@@ -375,7 +375,12 @@ class BrowserController:
             current_url = self.page.url
 
             # Get visual description from Llava
+            print(f"\n{'='*80}")
+            print(f"👁️  VISION MODE: Finding '{button_name}' button")
+            print(f"   Screenshot: {screenshot_path}")
+            print(f"{'='*80}")
             self.logger.info(f"👁️  VISION MODE: Finding {button_name} using Llava + Llama...")
+
             visual_desc = self.vision.get_brief_visual_description(
                 screenshot_path,
                 goal=f"Find and click {button_name} button",
@@ -383,9 +388,11 @@ class BrowserController:
             )
 
             if not visual_desc:
+                print(f"⚠️  Vision unavailable, falling back to DOM-only mode")
                 self.logger.warning(f"⚠️  Vision unavailable, falling back to DOM-only mode")
 
             # Get DOM elements (buttons/links)
+            print(f"\n📋 Extracting DOM elements...")
             dom_elements = []
             for elem in self.page.query_selector_all('button, a, [role="button"]'):
                 try:
@@ -411,6 +418,12 @@ class BrowserController:
                 except:
                     continue
 
+            print(f"   Found {len(dom_elements)} interactive elements")
+            if dom_elements:
+                print(f"   Sample elements:")
+                for i, elem in enumerate(dom_elements[:5]):  # Show first 5
+                    print(f"      {i+1}. [{elem['type']}] {elem['text'][:50]} → {elem['selector']}")
+
             # Ask Llama to decide which button to click
             goal = f"Click the '{button_keywords[0]}' button to proceed"
             action = self.vision.decide_action(
@@ -423,36 +436,53 @@ class BrowserController:
             )
 
             # Execute the action
+            print(f"\n⚡ EXECUTING ACTION...")
             if action.get('action') == 'click':
                 selector = action.get('selector')
                 if selector:
+                    print(f"   Trying to click: {selector}")
                     try:
                         elem = self.page.locator(selector).first
                         if elem.is_visible():
                             elem.click()
+                            print(f"✅ VISION SUCCESS: Clicked {button_name} via {selector}")
                             self.logger.info(f"✅ VISION SUCCESS: Clicked {button_name} via {selector}")
                             human_delay(1.0, 2.0)
                             self.consecutive_failures = 0
                             return True
                     except Exception as e:
+                        print(f"⚠️  Vision-suggested selector failed: {selector}")
+                        print(f"   Error: {e}")
                         self.logger.warning(f"⚠️  Vision-suggested selector failed: {selector}: {e}")
 
             # Fallback: try keyword matching in DOM
+            print(f"\n🔄 FALLBACK: Trying keyword matching in DOM...")
             self.logger.info(f"🔄 FALLBACK: Trying keyword matching in DOM...")
+            matches_found = 0
             for elem_data in dom_elements:
                 elem_text = elem_data['text'].lower()
                 if any(kw.lower() in elem_text for kw in button_keywords):
+                    matches_found += 1
+                    print(f"   Trying: {elem_data['text'][:50]} → {elem_data['selector']}")
                     try:
                         selector = elem_data['selector']
                         elem = self.page.locator(selector).first
                         if elem.is_visible():
                             elem.click()
+                            print(f"✅ FALLBACK SUCCESS: Clicked {button_name} via {selector}")
                             self.logger.info(f"✅ FALLBACK SUCCESS: Clicked {button_name} via {selector}")
                             human_delay(1.0, 2.0)
                             self.consecutive_failures = 0
                             return True
-                    except:
+                    except Exception as e:
+                        print(f"   Failed: {e}")
                         continue
+
+            print(f"\n❌ TOTAL FAILURE: Could not find '{button_name}' button")
+            print(f"   Vision-suggested selector: {action.get('selector', 'none')}")
+            print(f"   Keyword matches found: {matches_found}")
+            print(f"   Total DOM elements checked: {len(dom_elements)}")
+            print(f"{'='*80}\n")
 
             self.logger.error(f"❌ FAILED: Could not find {button_name} button (vision + fallback both failed)")
             self.consecutive_failures += 1
